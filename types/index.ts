@@ -235,7 +235,14 @@ export type QuestType =
   | 'muscle_xp'
   | 'workout_duration'
   | 'streak_day'
-  | 'set_count';
+  | 'set_count'
+  // Refonte du moteur de quêtes :
+  | 'total_reps'         // cumulative reps across sets (STRENGTH/ENDURANCE)
+  | 'max_weight'         // max weight observed on a single set (STRENGTH)
+  | 'early_workout';     // workout started before a given hour (DISCIPLINE)
+
+/** High-level category used by the UI (icon + tagline). */
+export type QuestCategory = 'strength' | 'endurance' | 'discipline';
 
 export type QuestStatus =
   | 'active'
@@ -267,6 +274,14 @@ export interface Quest {
   lootReward?: LootReward;
 
   difficulty: QuestDifficulty;
+  /** High-level category — drives the UI icon & badge colour. */
+  category: QuestCategory;
+  /** Computed rank letter (E → S) for the "QUÊTE DE RANG X" label. */
+  rank: 'E' | 'D' | 'C' | 'B' | 'A' | 'S';
+
+  /** Reference to the library template (debug + re-roll). */
+  templateId?: string;
+
   status: QuestStatus;
 
   createdAt: number;

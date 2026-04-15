@@ -54,7 +54,7 @@ import {
   computeSetXp,
 } from '@/services/gamificationService';
 import {
-  applyQuestEvent,
+  checkQuestProgress,
   expireQuests,
   generateDailyQuests,
   nextQuestExpiry,
@@ -245,7 +245,12 @@ export const useAppStore = create<AppState>()(
         const now = Date.now();
         const { profile: currentProfile } = get();
 
-        // Onboarding gate — bodyweight MUST be set before we do anything.
+        // Daily quests do NOT depend on bodyweight — refresh them first so
+        // the Quêtes tab is populated even before onboarding completes.
+        get().refreshDailyQuests(false);
+
+        // Onboarding gate — bodyweight MUST be set for the bio-monitoring
+        // pipeline (XP routing, deconditioning, status refresh).
         if (currentProfile.preferences.bodyweightKg === null) {
           set({ isInitialized: false, needsOnboarding: true });
           return;
@@ -266,7 +271,6 @@ export const useAppStore = create<AppState>()(
           isInitialized: true,
           needsOnboarding: false,
         });
-        get().refreshDailyQuests(false);
       },
 
       resetProfile: () => {
@@ -437,18 +441,59 @@ export const useAppStore = create<AppState>()(
           ),
         };
 
-        // 6) Feed quests
+        // 6) Feed quests — the listener
+        const category = exercise.category;
+        const effectiveW =
+          exercise.isBodyweight && newSet.weight === 0
+            ? Math.max(1, bodyweight)
+            : newSet.weight;
+
         let quests = state.activeQuests;
-        if (!newSet.isWarmup) {
-          quests = applyQuestEvent(quests, { type: 'set_count', value: 1 }, now);
-        }
-        quests = applyQuestEvent(
+
+        // Volume quests (filtered or not)
+        quests = checkQuestProgress(
           quests,
-          { type: 'volume_total', value: breakdown.volume },
+          {
+            type: 'volume_total',
+            value: breakdown.volume,
+            filter: { category },
+          },
           now,
         );
+
+        if (!newSet.isWarmup) {
+          // Working set counters
+          quests = checkQuestProgress(
+            quests,
+            { type: 'set_count', value: 1, filter: { category } },
+            now,
+          );
+
+          // Total reps — drives the ENDURANCE category
+          quests = checkQuestProgress(
+            quests,
+            {
+              type: 'total_reps',
+              value: newSet.reps,
+              filter: { category },
+            },
+            now,
+          );
+
+          // Max-weight PR (STRENGTH) — per-exercise and per-category both match
+          quests = checkQuestProgress(
+            quests,
+            {
+              type: 'max_weight',
+              value: effectiveW,
+              filter: { category, exerciseIds: [exercise.id] },
+            },
+            now,
+          );
+        }
+
         for (const p of breakdown.perMuscle) {
-          quests = applyQuestEvent(
+          quests = checkQuestProgress(
             quests,
             {
               type: 'muscle_xp',
@@ -457,7 +502,7 @@ export const useAppStore = create<AppState>()(
             },
             now,
           );
-          quests = applyQuestEvent(
+          quests = checkQuestProgress(
             quests,
             {
               type: 'muscle_volume',
@@ -536,11 +581,31 @@ export const useAppStore = create<AppState>()(
 
         // Feed streak & duration quests
         let quests = get().activeQuests;
-        quests = applyQuestEvent(quests, { type: 'streak_day', value: 1 }, now);
+
+        // Only emit streak_day when the streak actually advances today
+        // (prevents multiple same-day sessions from double-counting).
+        if (!isSameDay) {
+          quests = checkQuestProgress(
+            quests,
+            { type: 'streak_day', value: 1 },
+            now,
+          );
+        }
+
         if (finalized.durationSeconds) {
-          quests = applyQuestEvent(
+          quests = checkQuestProgress(
             quests,
             { type: 'workout_duration', value: finalized.durationSeconds },
+            now,
+          );
+        }
+
+        // Early workout (DISCIPLINE) — fired once per session if started before 8:00.
+        const startedHour = new Date(finalized.startedAt).getHours();
+        if (startedHour < 8) {
+          quests = checkQuestProgress(
+            quests,
+            { type: 'early_workout', value: 1 },
             now,
           );
         }
@@ -614,7 +679,12 @@ export const useAppStore = create<AppState>()(
       // -------------------------------------------------------------------
       refreshDailyQuests: (force = false) => {
         const now = Date.now();
-        const { activeQuests, completedQuests, lastQuestGenerationAt } = get();
+        const {
+          activeQuests,
+          completedQuests,
+          lastQuestGenerationAt,
+          profile,
+        } = get();
 
         const expired = expireQuests(activeQuests, now);
         const stillActive = expired.filter(q => q.status === 'active');
@@ -627,7 +697,13 @@ export const useAppStore = create<AppState>()(
           now >= nextQuestExpiry(lastQuestGenerationAt) - 1;
 
         if (needsNew) {
-          const fresh = generateDailyQuests(now);
+          const fresh = generateDailyQuests(
+            {
+              level: profile.level,
+              currentStreak: profile.currentStreak,
+            },
+            now,
+          );
           set({
             activeQuests: fresh,
             completedQuests: [...movedToCompleted, ...completedQuests].slice(0, 200),
@@ -766,19 +842,37 @@ export const useAppStore = create<AppState>()(
         lastQuestGenerationAt: state.lastQuestGenerationAt,
         lastDeconditioningResult: state.lastDeconditioningResult,
       }),
-      version: 2,
+      version: 3,
       migrate: (persistedState, version) => {
-        // v1 → v2 : UserProfile.username was renamed to UserProfile.nickname.
+        const s =
+          (persistedState as
+            | {
+                profile?: Record<string, unknown>;
+                activeQuests?: unknown;
+                lastQuestGenerationAt?: number | null;
+              }
+            | null) ?? ({} as Record<string, unknown>);
+
+        // v1 → v2: UserProfile.username was renamed to UserProfile.nickname.
         if (version < 2) {
-          const s = persistedState as { profile?: Record<string, unknown> } | null;
-          if (s?.profile && typeof s.profile === 'object') {
+          if (s.profile && typeof s.profile === 'object') {
             const p = s.profile as Record<string, unknown>;
             if (typeof p.nickname !== 'string') {
-              p.nickname = typeof p.username === 'string' ? p.username : 'Chasseur';
+              p.nickname =
+                typeof p.username === 'string' ? p.username : 'Chasseur';
             }
             delete p.username;
           }
         }
+
+        // v2 → v3: Quest shape gained `category` + `rank` + `templateId`.
+        // Old instances would crash the UI — wipe them; a fresh batch is
+        // generated by the next refreshDailyQuests() call.
+        if (version < 3) {
+          s.activeQuests = [];
+          s.lastQuestGenerationAt = null;
+        }
+
         return persistedState as never;
       },
     },
