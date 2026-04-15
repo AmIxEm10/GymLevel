@@ -7,14 +7,17 @@
     "userInterfaceStyle": "dark",
     "scheme": "gymlevel",
     "newArchEnabled": true,
+    "backgroundColor": "#020617",
+    "primaryColor": "#22d3ee",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gymlevel.app"
+      "bundleIdentifier": "com.gymlevel.app",
+      "backgroundColor": "#020617"
     },
     "android": {
       "package": "com.gymlevel.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0B0B0F"
+        "backgroundColor": "#020617"
       }
     },
     "plugins": [
@@ -22,7 +25,19 @@
     ],
     "web": {
       "bundler": "metro",
-      "output": "static"
+      "output": "static",
+      "backgroundColor": "#020617",
+      "themeColor": "#020617",
+      "name": "GymLevel",
+      "shortName": "GymLevel",
+      "display": "standalone",
+      "meta": {
+        "apple-mobile-web-app-capable": "yes",
+        "apple-mobile-web-app-status-bar-style": "black-translucent",
+        "mobile-web-app-capable": "yes",
+        "theme-color": "#020617",
+        "viewport": "width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
+      }
     },
     "experiments": {
       "typedRoutes": true,
