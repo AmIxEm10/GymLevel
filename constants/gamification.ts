@@ -43,6 +43,13 @@ export const COMPOUND_GLOBAL_MULTIPLIER = 1.0;
  */
 export const MAX_CLASS_MULTIPLIER = 1.5;
 
+/**
+ * Maximum stacked equipment bonus multiplier.
+ * Applied independently from the class cap — a fully geared character can
+ * reach classMult × equipmentMult ≈ 1.5 × 1.3 = 1.95× XP on a perfect set.
+ */
+export const MAX_EQUIPMENT_MULTIPLIER = 1.3;
+
 // ---------- Recovery / Status ---------------------------------------------
 
 /** Thresholds (hours since lastTrainedAt) at which a muscle moves status. */

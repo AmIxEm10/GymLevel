@@ -6,7 +6,10 @@
  */
 
 import type {
+  EquipmentItem,
+  EquipmentRarity,
   ExerciseCategory,
+  LootReward,
   MuscleGroupId,
   Quest,
   QuestDifficulty,
@@ -19,6 +22,11 @@ import {
   QUEST_XP_REWARDS,
 } from '@/constants/gamification';
 import { ALL_MUSCLE_IDS } from '@/data/muscleGroups';
+import {
+  ITEM_TEMPLATES_BY_ID,
+  mintItem,
+  pickRandomTemplate,
+} from '@/data/equipment';
 
 // ---------------------------------------------------------------------------
 // Pool definition
@@ -169,6 +177,17 @@ function drawQuestTemplates(count: number): QuestTemplate[] {
   return out;
 }
 
+/**
+ * Default loot reward attached to a freshly generated daily quest, indexed
+ * by difficulty. Can be overridden for specific hand-crafted quests later.
+ */
+const DEFAULT_LOOT_BY_DIFFICULTY: Record<QuestDifficulty, LootReward | undefined> = {
+  easy: undefined,
+  medium: { kind: 'random', rarity: 'common' },
+  hard: { kind: 'random', rarity: 'rare' },
+  epic: { kind: 'random', rarity: 'epic' },
+};
+
 export function generateDailyQuests(now: number): Quest[] {
   const templates = drawQuestTemplates(DAILY_QUEST_COUNT);
   const expiresAt = nextQuestExpiry(now);
@@ -185,12 +204,48 @@ export function generateDailyQuests(now: number): Quest[] {
       target,
       progress: 0,
       xpReward: QUEST_XP_REWARDS[tpl.difficulty],
+      lootReward: DEFAULT_LOOT_BY_DIFFICULTY[tpl.difficulty],
       difficulty: tpl.difficulty,
       status: 'active',
       createdAt: now,
       expiresAt,
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Loot resolution (on claim)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a quest's lootReward into a real EquipmentItem instance.
+ * Returns null when the quest has no reward, or when a random roll
+ * couldn't find a matching template (empty pool).
+ */
+export function rollLootFromQuest(quest: Quest, now: number): EquipmentItem | null {
+  const reward = quest.lootReward;
+  if (!reward) return null;
+
+  if (reward.kind === 'specific') {
+    const tpl = ITEM_TEMPLATES_BY_ID[reward.templateId];
+    if (!tpl) return null;
+    return mintItem(tpl, now, quest.id);
+  }
+
+  // random roll
+  const tpl = pickRandomTemplate(reward.rarity, reward.slot);
+  if (!tpl) return null;
+  return mintItem(tpl, now, quest.id);
+}
+
+/** Convenience for UI flavor / notifications. */
+export function rarityWeight(rarity: EquipmentRarity): number {
+  switch (rarity) {
+    case 'common':    return 1;
+    case 'rare':      return 2;
+    case 'epic':      return 3;
+    case 'legendary': return 4;
+  }
 }
 
 // ---------------------------------------------------------------------------

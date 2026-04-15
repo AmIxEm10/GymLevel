@@ -31,7 +31,8 @@ GymLevel/
 ├── data/
 │   ├── muscleGroups.ts         # Les 17 groupes musculaires
 │   ├── exercises.ts            # Librairie d'exercices + activation musculaire
-│   ├── playerClasses.ts        # Classes RPG (Novice / Tank / Assassin / Berserker / Ranger)
+│   ├── playerClasses.ts        # Classes RPG Solo Leveling (7 classes)
+│   ├── equipment.ts            # Loot — templates d'items + pool par rareté
 │   └── workoutTemplates.ts     # Routines pré-construites
 ├── constants/
 │   └── gamification.ts         # Tous les nombres magiques du RPG
@@ -71,6 +72,7 @@ Voir `types/index.ts`. Entités principales :
 7. **Streaks** — bonus XP de 25/jour jusqu'à 14 jours consécutifs.
 8. **Bodyweight personnalisé** — `UserPreferences.bodyweightKg` (nullable). Utilisé comme poids effectif pour les exercices au poids du corps et comme référence du ratio Tank.
 9. **Gate d'onboarding** — `needsOnboarding: true` tant que `bodyweightKg` est `null`. `initializeApp()` court-circuite et `addSet` refuse de logger tant que la valeur n'est pas renseignée (écran "Évaluation du Système").
+10. **Équipement (Loot)** — 4 slots (tête / corps / arme / accessoire), 4 raretés (Commun / Rare / Épique / Légendaire). Les items embarquent un tableau `ClassBonus[]` évalué par le même moteur que les classes. `equipmentMult` stacke multiplicativement, plafonné par `MAX_EQUIPMENT_MULTIPLIER = 1.3`. Les quêtes droppent du loot selon leur difficulté (medium→Commun, hard→Rare, epic→Épique) via `rollLootFromQuest`. Actions du store : `equipItem(itemId)`, `unequipItem(slot)`, `dismissLootDrop()`.
 
 ## Prochaine étape
 

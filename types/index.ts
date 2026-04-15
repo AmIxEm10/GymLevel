@@ -263,6 +263,9 @@ export interface Quest {
   progress: number;
 
   xpReward: number;
+  /** Optional loot reward — rolled on claim by questService.rollLootFromQuest(). */
+  lootReward?: LootReward;
+
   difficulty: QuestDifficulty;
   status: QuestStatus;
 
@@ -359,7 +362,66 @@ export interface PlayerClass {
 }
 
 // ===========================================================================
-// 7. USER PROFILE
+// 7. EQUIPMENT / LOOT
+// ===========================================================================
+
+export type EquipmentRarity = 'common' | 'rare' | 'epic' | 'legendary';
+
+export type EquipmentSlot = 'head' | 'body' | 'weapon' | 'accessory';
+
+/**
+ * Equipment instance owned by the user.
+ * The `bonuses` field re-uses the ClassBonus shape so the same condition
+ * evaluator (matchesClassBonus) can be applied. Multipliers on items are
+ * intentionally smaller than on classes (≈ 1.02 – 1.15 per bonus).
+ */
+export interface EquipmentItem {
+  /** Unique instance id — generated at drop time. */
+  id: string;
+  /** Reference to the template in data/equipment.ts (useful for UI icons/flavor). */
+  templateId: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  rarity: EquipmentRarity;
+  slot: EquipmentSlot;
+  bonuses: ClassBonus[];
+  acquiredAt: number;
+  sourceQuestId?: string;
+}
+
+/** Static definition used to mint new EquipmentItem instances on drop. */
+export interface ItemTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  rarity: EquipmentRarity;
+  slot: EquipmentSlot;
+  /** Template bonuses — copied into each minted instance. */
+  bonuses: ClassBonus[];
+}
+
+export interface Inventory {
+  /** Every item the user has acquired, equipped or not. */
+  equipment: EquipmentItem[];
+  /** Currently worn items — at most one per slot. */
+  equipped: Record<EquipmentSlot, EquipmentItem | null>;
+}
+
+/** Declarative loot reward attached to a Quest. */
+export type LootReward =
+  /** Drop a specific item template. */
+  | { kind: 'specific'; templateId: string }
+  /** Roll a random item from the pool, constrained by rarity and/or slot. */
+  | {
+      kind: 'random';
+      rarity: EquipmentRarity;
+      slot?: EquipmentSlot;
+    };
+
+// ===========================================================================
+// 8. USER PROFILE
 // ===========================================================================
 
 export type WeightUnit = 'kg' | 'lbs';
@@ -399,6 +461,9 @@ export interface UserProfile {
 
   muscleStats: Record<MuscleGroupId, MuscleGroupStats>;
 
+  /** Owned + currently equipped loot. */
+  inventory: Inventory;
+
   currentStreak: number;
   longestStreak: number;
   totalWorkouts: number;
@@ -409,7 +474,7 @@ export interface UserProfile {
 }
 
 // ===========================================================================
-// 8. GAMIFICATION EVENTS (audit log / debug)
+// 9. GAMIFICATION EVENTS (audit log / debug)
 // ===========================================================================
 
 export type XpEventReason =
@@ -444,7 +509,7 @@ export interface DeconditioningCheckResult {
 }
 
 // ===========================================================================
-// 9. STORE SHAPES (re-exported for convenience)
+// 10. STORE SHAPES (re-exported for convenience)
 // ===========================================================================
 
 export type NewSetPayload = Omit<WorkoutSet, 'id' | 'completedAt' | 'setNumber'>;

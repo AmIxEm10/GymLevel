@@ -17,6 +17,8 @@
 import type {
   ClassBonus,
   ClassBonusCondition,
+  EquipmentItem,
+  EquipmentSlot,
   Exercise,
   MuscleGroupId,
   MuscleGroupStats,
@@ -34,6 +36,7 @@ import {
   FATIGUE_XP_MULTIPLIER,
   LEVEL_EXPONENT,
   MAX_CLASS_MULTIPLIER,
+  MAX_EQUIPMENT_MULTIPLIER,
   MAX_LEVEL,
   VOLUME_TO_XP_RATIO,
   WARMUP_XP_MULTIPLIER,
@@ -213,16 +216,78 @@ export function computeClassMultiplier(
 }
 
 // ===========================================================================
+// Equipment bonuses (RPG loot)
+// ===========================================================================
+
+export interface AppliedEquipmentBonus {
+  itemId: string;
+  itemName: string;
+  slot: EquipmentSlot;
+  bonus: ClassBonus;
+}
+
+/**
+ * Compute the stacked equipment multiplier by iterating the currently
+ * equipped items. Reuses the ClassBonus condition evaluator, so equipment
+ * bonuses behave exactly like class bonuses (data-driven, composable).
+ * Product is clamped to MAX_EQUIPMENT_MULTIPLIER.
+ */
+export function computeEquipmentMultiplier(
+  equipped: Record<EquipmentSlot, EquipmentItem | null>,
+  ctx: ClassBonusContext,
+): {
+  multiplier: number;
+  rawMultiplier: number;
+  clamped: boolean;
+  applied: AppliedEquipmentBonus[];
+} {
+  let rawMultiplier = 1;
+  const applied: AppliedEquipmentBonus[] = [];
+
+  const slots: EquipmentSlot[] = ['head', 'body', 'weapon', 'accessory'];
+  for (const slot of slots) {
+    const item = equipped[slot];
+    if (!item) continue;
+    for (const bonus of item.bonuses) {
+      if (matchesClassBonus(bonus.condition, ctx)) {
+        rawMultiplier *= bonus.multiplier;
+        applied.push({
+          itemId: item.id,
+          itemName: item.name,
+          slot,
+          bonus,
+        });
+      }
+    }
+  }
+
+  const multiplier = Math.min(rawMultiplier, MAX_EQUIPMENT_MULTIPLIER);
+  return {
+    multiplier,
+    rawMultiplier,
+    clamped: rawMultiplier > MAX_EQUIPMENT_MULTIPLIER,
+    applied,
+  };
+}
+
+// ===========================================================================
 // Full set XP breakdown
 // ===========================================================================
 
 export interface SetXpBreakdown {
   volume: number;
   baseXp: number;                          // after all non-status modifiers
+
   classMultiplier: number;                 // post-clamp
-  classMultiplierRaw: number;              // pre-clamp — useful for UI "capped" indicator
+  classMultiplierRaw: number;
   classMultiplierClamped: boolean;
   classBonusesApplied: ClassBonus[];
+
+  equipmentMultiplier: number;             // post-clamp
+  equipmentMultiplierRaw: number;
+  equipmentMultiplierClamped: boolean;
+  equipmentBonusesApplied: AppliedEquipmentBonus[];
+
   perMuscle: Array<{
     muscleId: MuscleGroupId;
     share: number;
@@ -236,6 +301,14 @@ export interface SetXpBreakdown {
 /**
  * Compute the XP breakdown for one completed set.
  * Caller (store) applies the result against `muscleStats` atomically.
+ *
+ * Pipeline:
+ *   volume  = reps × effectiveWeight
+ *   baseXp  = volume × VOLUME_TO_XP_RATIO
+ *           × setModifier            (warmup / dropset / failure / exercise mult)
+ *           × classMult (clamped)    (RPG class bonuses)
+ *           × equipmentMult (clamped)(loot bonuses from equipped items)
+ *   perMuscle = baseXp × involvement.weight × muscleStatusModifier
  */
 export function computeSetXp(
   set: WorkoutSet,
@@ -244,18 +317,27 @@ export function computeSetXp(
   userBodyweightKg: number,
   playerClass: PlayerClass,
   currentStreak: number,
+  equipped: Record<EquipmentSlot, EquipmentItem | null>,
 ): SetXpBreakdown {
   const volume = computeSetVolume(set, exercise, userBodyweightKg);
   const setModifier = computeSetModifier(set, exercise);
 
-  const classCalc = computeClassMultiplier(playerClass, {
+  const ctx: ClassBonusContext = {
     set,
     exercise,
     userBodyweightKg,
     currentStreak,
-  });
+  };
 
-  const baseXp = volume * VOLUME_TO_XP_RATIO * setModifier * classCalc.multiplier;
+  const classCalc = computeClassMultiplier(playerClass, ctx);
+  const equipmentCalc = computeEquipmentMultiplier(equipped, ctx);
+
+  const baseXp =
+    volume *
+    VOLUME_TO_XP_RATIO *
+    setModifier *
+    classCalc.multiplier *
+    equipmentCalc.multiplier;
 
   const perMuscle = exercise.muscleInvolvement.map(mi => {
     const statusMod = statusXpMultiplier(muscleStats[mi.muscleId].status);
@@ -275,10 +357,17 @@ export function computeSetXp(
   return {
     volume,
     baseXp,
+
     classMultiplier: classCalc.multiplier,
     classMultiplierRaw: classCalc.rawMultiplier,
     classMultiplierClamped: classCalc.clamped,
     classBonusesApplied: classCalc.applied,
+
+    equipmentMultiplier: equipmentCalc.multiplier,
+    equipmentMultiplierRaw: equipmentCalc.rawMultiplier,
+    equipmentMultiplierClamped: equipmentCalc.clamped,
+    equipmentBonusesApplied: equipmentCalc.applied,
+
     perMuscle,
     totalXp,
   };

@@ -13,7 +13,10 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type {
   DeconditioningCheckResult,
+  EquipmentItem,
+  EquipmentSlot,
   Exercise,
+  Inventory,
   MuscleGroupId,
   NewSetPayload,
   NewTemplatePayload,
@@ -32,6 +35,7 @@ import {
   STREAK_MAX_BONUS_DAYS,
   STREAK_XP_BONUS_PER_DAY,
 } from '@/constants/gamification';
+import { emptyEquippedMap } from '@/data/equipment';
 import { EXERCISES, EXERCISES_BY_ID } from '@/data/exercises';
 import { createInitialMuscleStatsRecord } from '@/data/muscleGroups';
 import {
@@ -54,6 +58,7 @@ import {
   expireQuests,
   generateDailyQuests,
   nextQuestExpiry,
+  rollLootFromQuest,
 } from '@/services/questService';
 import {
   refreshAllMuscleStatuses,
@@ -89,6 +94,13 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   notifications: true,
 };
 
+function createDefaultInventory(): Inventory {
+  return {
+    equipment: [],
+    equipped: emptyEquippedMap(),
+  };
+}
+
 function createDefaultProfile(now: number): UserProfile {
   return {
     id: 'local_user',
@@ -103,6 +115,8 @@ function createDefaultProfile(now: number): UserProfile {
     xpToNextLevel: 100,
 
     muscleStats: createInitialMuscleStatsRecord(),
+
+    inventory: createDefaultInventory(),
 
     currentStreak: 0,
     longestStreak: 0,
@@ -184,6 +198,13 @@ interface AppState {
   refreshDailyQuests: (force?: boolean) => void;
   claimQuestReward: (questId: string) => void;
 
+  // --- Equipment / Loot ---------------------------------------------------
+  /** Non-persisted — last item minted by claimQuestReward, for "loot popup" UI. */
+  lastLootDrop: EquipmentItem | null;
+  equipItem: (itemId: string) => void;
+  unequipItem: (slot: EquipmentSlot) => void;
+  dismissLootDrop: () => void;
+
   // --- Templates ----------------------------------------------------------
   cloneTemplate: (templateId: string) => string | null;
   saveCustomTemplate: (payload: NewTemplatePayload) => string;
@@ -212,6 +233,7 @@ export const useAppStore = create<AppState>()(
 
       isInitialized: false,
       needsOnboarding: true,
+      lastLootDrop: null,
 
       // -------------------------------------------------------------------
       // Lifecycle
@@ -256,6 +278,7 @@ export const useAppStore = create<AppState>()(
           lastDeconditioningResult: null,
           isInitialized: false,
           needsOnboarding: true,
+          lastLootDrop: null,
         });
       },
 
@@ -369,9 +392,10 @@ export const useAppStore = create<AppState>()(
 
         const playerClass = getPlayerClass(profile.playerClassId);
 
-        // 3) Compute XP breakdown (class multiplier integrated here).
-        //    currentStreak is read directly from the profile so the Healer's
-        //    'streak_active' bonus can evaluate on every set.
+        // 3) Compute XP breakdown (class multiplier + equipment multiplier).
+        //    currentStreak and equipped items are read from the profile so
+        //    the Healer's 'streak_active' bonus and any equipped loot can
+        //    evaluate on every set.
         const breakdown = computeSetXp(
           newSet,
           exercise,
@@ -379,6 +403,7 @@ export const useAppStore = create<AppState>()(
           bodyweight,
           playerClass,
           profile.currentStreak,
+          profile.inventory.equipped,
         );
 
         // 4) Apply to profile (XP + level + per-muscle stats)
@@ -608,7 +633,11 @@ export const useAppStore = create<AppState>()(
         const quest = activeQuests.find(q => q.id === questId);
         if (!quest || quest.status !== 'completed') return;
 
+        // 1) Global XP reward
         get().grantXp('global', quest.xpReward);
+
+        // 2) Roll loot (if the quest has a reward defined)
+        const lootItem = rollLootFromQuest(quest, now);
 
         set(s => ({
           activeQuests: s.activeQuests.filter(q => q.id !== questId),
@@ -616,7 +645,64 @@ export const useAppStore = create<AppState>()(
             { ...quest, completedAt: quest.completedAt ?? now },
             ...s.completedQuests,
           ].slice(0, 200),
+          profile: lootItem
+            ? {
+                ...s.profile,
+                inventory: {
+                  ...s.profile.inventory,
+                  equipment: [lootItem, ...s.profile.inventory.equipment],
+                },
+              }
+            : s.profile,
+          lastLootDrop: lootItem ?? s.lastLootDrop,
         }));
+      },
+
+      // -------------------------------------------------------------------
+      // Equipment / Loot
+      // -------------------------------------------------------------------
+      equipItem: itemId => {
+        set(s => {
+          const inventory = s.profile.inventory;
+          const item = inventory.equipment.find(e => e.id === itemId);
+          if (!item) return s;
+
+          // Replace whatever is currently in that slot (if anything).
+          const nextEquipped = {
+            ...inventory.equipped,
+            [item.slot]: item,
+          };
+
+          return {
+            profile: {
+              ...s.profile,
+              inventory: {
+                ...inventory,
+                equipped: nextEquipped,
+              },
+            },
+          };
+        });
+      },
+
+      unequipItem: slot => {
+        set(s => {
+          const inventory = s.profile.inventory;
+          if (!inventory.equipped[slot]) return s;
+          return {
+            profile: {
+              ...s.profile,
+              inventory: {
+                ...inventory,
+                equipped: { ...inventory.equipped, [slot]: null },
+              },
+            },
+          };
+        });
+      },
+
+      dismissLootDrop: () => {
+        set({ lastLootDrop: null });
       },
 
       // -------------------------------------------------------------------
@@ -690,3 +776,6 @@ export const selectBodyweightKg = (s: AppState) =>
   s.profile.preferences.bodyweightKg;
 export const selectNeedsOnboarding = (s: AppState) => s.needsOnboarding;
 export const selectIsInitialized = (s: AppState) => s.isInitialized;
+export const selectInventory = (s: AppState) => s.profile.inventory;
+export const selectEquipped = (s: AppState) => s.profile.inventory.equipped;
+export const selectLastLootDrop = (s: AppState) => s.lastLootDrop;
