@@ -1,14 +1,16 @@
 import { Tabs } from 'expo-router';
-import { User } from 'lucide-react-native';
+import { ScrollText, User } from 'lucide-react-native';
 
 /**
- * Tabs layout — only Profile for now. Tracker / Quests / Templates will
- * be added as separate tabs in later passes.
+ * Tabs layout.
+ * - index → Quêtes (home)
+ * - profile → Statut
+ * Tracker / Templates will land on later passes.
  */
 export default function TabsLayout() {
   return (
     <Tabs
-      initialRouteName="profile"
+      initialRouteName="index"
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -20,6 +22,15 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: '#64748B',
       }}
     >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Quêtes',
+          tabBarIcon: ({ color, size }) => (
+            <ScrollText color={color} size={size} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="profile"
         options={{
