@@ -1,8 +1,10 @@
+import { router } from 'expo-router';
 import {
   Clock,
   Dumbbell,
   HeartPulse,
   ScrollText,
+  Swords,
   Trophy,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -108,6 +110,30 @@ export default function QuestsScreen() {
           <Text className="mt-1 text-xs italic text-slate-500">
             Directives quotidiennes calibrées sur ton rang et ton niveau.
           </Text>
+
+          {/* Start workout CTA — routes to Battle Mode */}
+          <Pressable
+            onPress={() => router.push('/workout/active')}
+            className="mt-5 flex-row items-center justify-center rounded-2xl border-2 border-emerald-400/70 bg-emerald-500/15 py-4 active:opacity-70"
+            style={{
+              shadowColor: '#10B981',
+              shadowOpacity: 0.55,
+              shadowRadius: 16,
+              shadowOffset: { width: 0, height: 0 },
+            }}
+          >
+            <Swords size={18} color="#6EE7B7" strokeWidth={2.5} />
+            <Text
+              className="ml-2 text-sm font-black uppercase tracking-[5px] text-emerald-200"
+              style={{
+                textShadowColor: '#10B981',
+                textShadowRadius: 10,
+                textShadowOffset: { width: 0, height: 0 },
+              }}
+            >
+              Démarrer une séance
+            </Text>
+          </Pressable>
         </View>
 
         {/* =========================================== DAILY QUESTS */}
