@@ -6,21 +6,40 @@
     "noImplicitOverride": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@/types": ["./types"],
-      "@/store/*": ["./store/*"],
-      "@/services/*": ["./services/*"],
-      "@/data/*": ["./data/*"],
-      "@/constants/*": ["./constants/*"],
-      "@/hooks/*": ["./hooks/*"],
-      "@/components/*": ["./components/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@/types": [
+        "./types"
+      ],
+      "@/store/*": [
+        "./store/*"
+      ],
+      "@/services/*": [
+        "./services/*"
+      ],
+      "@/data/*": [
+        "./data/*"
+      ],
+      "@/constants/*": [
+        "./constants/*"
+      ],
+      "@/hooks/*": [
+        "./hooks/*"
+      ],
+      "@/components/*": [
+        "./components/*"
+      ]
     }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "nativewind-env.d.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }
