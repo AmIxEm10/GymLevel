@@ -157,6 +157,84 @@ export const BUILT_IN_TEMPLATES: readonly WorkoutTemplate[] = [
       { exerciseId: 'push_up',           order: 3, targetSets: 5, targetReps: 'AMRAP', targetRestSeconds: 30 },
     ],
   },
+
+  // =========================================================================
+  // SIGNATURE DUNGEONS — handcrafted for the 3 classes (V1 Alpha)
+  // =========================================================================
+
+  // ---------------------------- LE TOMBEAU DU COLOSSE — Guerrier / Force
+  {
+    id: 'tpl_tombeau_colosse',
+    name: 'Le Tombeau du Colosse',
+    description: 'Dédié au Guerrier. Charges lourdes, séries brèves — écrase la pierre sous la barre.',
+    tags: ['push', 'upper'],
+    difficulty: 'advanced',
+    rankOverride: 'B',
+    estimatedDurationMinutes: 70,
+    isBuiltIn: true,
+    createdAt: 0, updatedAt: 0,
+    exercises: [
+      // Échauffement — mobilisation épaules/poignets via pompes légères
+      { exerciseId: 'push_up',             order: 1, targetSets: 2, targetReps: '10',    targetRestSeconds: 60,  notes: 'Échauffement' },
+      // BOSS
+      { exerciseId: 'bench_press_barbell', order: 2, targetSets: 5, targetReps: '5',     targetRestSeconds: 180, notes: 'BOSS — charges lourdes, 5×5' },
+      // ELITES
+      { exerciseId: 'overhead_press',      order: 3, targetSets: 3, targetReps: '8',     targetRestSeconds: 150, notes: 'ELITE' },
+      { exerciseId: 'dips',                order: 4, targetSets: 3, targetReps: '8',     targetRestSeconds: 120, notes: 'ELITE — lestés si possible' },
+      // Accessoires
+      { exerciseId: 'triceps_pushdown',    order: 5, targetSets: 3, targetReps: '10-12', targetRestSeconds: 90  },
+      { exerciseId: 'lateral_raise',       order: 6, targetSets: 3, targetReps: '12-15', targetRestSeconds: 60  },
+    ],
+  },
+
+  // ---------------------------- LE SENTIER DE L'OMBRE — Assassin / Corps
+  {
+    id: 'tpl_sentier_ombre',
+    name: "Le Sentier de l'Ombre",
+    description: "Dédié à l'Assassin. Poids du corps, explosivité, aucune chaîne ne te retient.",
+    tags: ['pull', 'upper', 'core'],
+    difficulty: 'intermediate',
+    rankOverride: 'C',
+    estimatedDurationMinutes: 50,
+    isBuiltIn: true,
+    createdAt: 0, updatedAt: 0,
+    exercises: [
+      // Échauffement — cardio léger
+      { exerciseId: 'jumping_jacks',     order: 1, targetSets: 2, targetReps: '45s',   targetRestSeconds: 30,  notes: 'Échauffement' },
+      // BOSS
+      { exerciseId: 'pull_up',           order: 2, targetSets: 4, targetReps: 'AMRAP', targetRestSeconds: 120, notes: 'BOSS — max de répétitions' },
+      // ELITES
+      { exerciseId: 'push_up_diamond',   order: 3, targetSets: 4, targetReps: '15',    targetRestSeconds: 75,  notes: 'ELITE — triceps focus' },
+      { exerciseId: 'jump_squat',        order: 4, targetSets: 4, targetReps: '20',    targetRestSeconds: 75,  notes: 'ELITE — explosivité' },
+      // Accessoire core
+      { exerciseId: 'plank',             order: 5, targetSets: 3, targetReps: '45s',   targetRestSeconds: 45  },
+    ],
+  },
+
+  // ---------------------------- LA FORGE DE SANG — Tank / Hypertrophie
+  {
+    id: 'tpl_forge_sang',
+    name: 'La Forge de Sang',
+    description: 'Dédiée au Tank. Pompe absolue, séries longues, que la fonte chauffe la forge.',
+    tags: ['push', 'upper', 'arms'],
+    difficulty: 'intermediate',
+    rankOverride: 'B',
+    estimatedDurationMinutes: 65,
+    isBuiltIn: true,
+    createdAt: 0, updatedAt: 0,
+    exercises: [
+      // Échauffement — cardio léger
+      { exerciseId: 'mountain_climber',   order: 1, targetSets: 2, targetReps: '45s',   targetRestSeconds: 45,  notes: 'Échauffement — 5 min cardio' },
+      // BOSS
+      { exerciseId: 'incline_db_press',   order: 2, targetSets: 4, targetReps: '12',    targetRestSeconds: 120, notes: 'BOSS — focus hypertrophie' },
+      // ELITES
+      { exerciseId: 'cable_flye',         order: 3, targetSets: 3, targetReps: '15',    targetRestSeconds: 75,  notes: 'ELITE — étirement pecs' },
+      { exerciseId: 'triceps_pushdown',   order: 4, targetSets: 4, targetReps: '12',    targetRestSeconds: 75,  notes: 'ELITE' },
+      // Accessoires
+      { exerciseId: 'db_flye',            order: 5, targetSets: 3, targetReps: '12',    targetRestSeconds: 75  },
+      { exerciseId: 'biceps_curl_db',     order: 6, targetSets: 3, targetReps: '12',    targetRestSeconds: 60  },
+    ],
+  },
 ];
 
 export const BUILT_IN_TEMPLATES_BY_ID: Record<string, WorkoutTemplate> =

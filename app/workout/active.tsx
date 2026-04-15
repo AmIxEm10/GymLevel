@@ -3,8 +3,10 @@ import {
   Check,
   ChevronRight,
   Flag,
+  Hourglass,
   Minus,
   Plus,
+  SkipForward,
   Timer,
   X,
 } from 'lucide-react-native';
@@ -18,7 +20,9 @@ import {
   selectActiveSession,
   useAppStore,
 } from '@/store/useAppStore';
-import type { WorkoutExercise } from '@/types';
+import type { WorkoutExercise, WorkoutSet } from '@/types';
+
+const DEFAULT_REST_SECONDS = 90;
 
 type SetPhase = 'idle' | 'active' | 'validated';
 
@@ -44,6 +48,38 @@ export default function WorkoutActiveScreen() {
   const [phase, setPhase] = useState<SetPhase>('idle');
   const [elapsed, setElapsed] = useState(0);
   const phaseResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Rest timer state — ticks down after each validated set.
+  const [restRemaining, setRestRemaining] = useState<number | null>(null);
+  const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearRest = () => {
+    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    restIntervalRef.current = null;
+    setRestRemaining(null);
+  };
+
+  const startRest = (seconds: number) => {
+    clearRest();
+    setRestRemaining(seconds);
+    restIntervalRef.current = setInterval(() => {
+      setRestRemaining(prev => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+          restIntervalRef.current = null;
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const adjustRest = (delta: number) => {
+    setRestRemaining(prev =>
+      prev === null ? null : Math.max(0, Math.min(900, prev + delta)),
+    );
+  };
 
   // If no active session (e.g. direct deep-link to /workout/active),
   // redirect to the Salle des Portes so the user can pick a template.
@@ -82,12 +118,19 @@ export default function WorkoutActiveScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIdx, activeSession?.id]);
 
-  // Cleanup phase-reset timer on unmount
+  // Cleanup phase-reset + rest timers on unmount
   useEffect(() => {
     return () => {
       if (phaseResetRef.current) clearTimeout(phaseResetRef.current);
+      if (restIntervalRef.current) clearInterval(restIntervalRef.current);
     };
   }, []);
+
+  // Kill the rest timer when the user jumps to the next exercise.
+  useEffect(() => {
+    clearRest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIdx]);
 
   // ------------- Guards -------------
 
@@ -141,6 +184,10 @@ export default function WorkoutActiveScreen() {
       isFailure: false,
     });
     markValidated();
+    // Kick off the rest timer — use the template's targetRestSeconds when
+    // present, otherwise the default 90 s.
+    const restTarget = currentWE.targetRestSeconds ?? DEFAULT_REST_SECONDS;
+    startRest(restTarget);
   };
 
   const goNextExercise = () => {
@@ -324,6 +371,23 @@ export default function WorkoutActiveScreen() {
               </View>
             </View>
 
+            {/* Last logged set — small guide under the inputs */}
+            {(() => {
+              const lastSet: WorkoutSet | undefined =
+                currentWE?.sets[currentWE.sets.length - 1];
+              if (!lastSet) return null;
+              return (
+                <View className="mt-4 flex-row items-center justify-center">
+                  <Text className="text-[10px] uppercase tracking-[3px] text-slate-500">
+                    Dernier set :{' '}
+                  </Text>
+                  <Text className="text-[11px] font-bold text-blue-200">
+                    {lastSet.weight} kg × {lastSet.reps}
+                  </Text>
+                </View>
+              );
+            })()}
+
             {/* Validate — big neon CTA */}
             <Pressable
               onPress={validate}
@@ -358,6 +422,67 @@ export default function WorkoutActiveScreen() {
               </Text>
             </Pressable>
           </View>
+
+          {/* Rest timer — only visible while counting down */}
+          {restRemaining !== null ? (
+            <View
+              className="mt-5 rounded-2xl border-2 border-amber-400/70 bg-amber-500/10 p-4"
+              style={{
+                shadowColor: '#FBBF24',
+                shadowOpacity: 0.55,
+                shadowRadius: 16,
+                shadowOffset: { width: 0, height: 0 },
+              }}
+            >
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center">
+                  <Hourglass size={14} color="#FBBF24" strokeWidth={2.25} />
+                  <Text className="ml-1.5 text-[10px] font-black uppercase tracking-[4px] text-amber-300">
+                    Repos
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={clearRest}
+                  className="flex-row items-center rounded-lg border border-amber-500/50 bg-amber-500/10 px-2.5 py-1 active:opacity-70"
+                >
+                  <SkipForward size={12} color="#FDE68A" strokeWidth={2.25} />
+                  <Text className="ml-1 text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                    Skip
+                  </Text>
+                </Pressable>
+              </View>
+
+              <Text
+                className="mt-2 text-center text-5xl font-black text-amber-200"
+                style={{
+                  textShadowColor: '#FBBF24',
+                  textShadowRadius: 14,
+                  textShadowOffset: { width: 0, height: 0 },
+                }}
+              >
+                {formatChrono(restRemaining)}
+              </Text>
+
+              <View className="mt-3 flex-row justify-center gap-2">
+                <Pressable
+                  onPress={() => adjustRest(-15)}
+                  className="rounded-lg border border-slate-700 bg-white/[0.03] px-3 py-1.5 active:opacity-70"
+                >
+                  <Text className="text-[11px] font-bold text-slate-300">
+                    −15 s
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => adjustRest(15)}
+                  className="rounded-lg border border-slate-700 bg-white/[0.03] px-3 py-1.5 active:opacity-70"
+                >
+                  <Text className="text-[11px] font-bold text-slate-300">
+                    +15 s
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
 
           {/* History */}
           <View className="mt-6 rounded-2xl border border-slate-800 bg-white/[0.02] p-4">

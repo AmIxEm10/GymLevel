@@ -44,10 +44,12 @@ import type {
 // ---------------------------------------------------------------------------
 
 /**
- * Compute a rank for a template from its difficulty + exercise count.
- * Custom advanced templates with lots of exercises can reach S.
+ * Compute a rank for a template. Signature dungeons can pin their own
+ * rank via `rankOverride`; everything else falls back to an auto-compute
+ * from difficulty + exercise count.
  */
 function computeTemplateRank(tpl: WorkoutTemplate): Rank {
+  if (tpl.rankOverride) return tpl.rankOverride;
   const n = tpl.exercises.length;
   if (tpl.difficulty === 'advanced') return n >= 6 ? 'S' : 'A';
   if (tpl.difficulty === 'intermediate') return n >= 6 ? 'B' : 'C';

@@ -216,6 +216,9 @@ export interface WorkoutTemplate {
   estimatedDurationMinutes: number;
   exercises: TemplateExercise[];
 
+  /** Optional explicit rank — overrides the auto-computed rank in the UI. */
+  rankOverride?: 'E' | 'D' | 'C' | 'B' | 'A' | 'S';
+
   isBuiltIn: boolean;
   clonedFrom?: string;
 
