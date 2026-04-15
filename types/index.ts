@@ -446,7 +446,7 @@ export interface UserPreferences {
 
 export interface UserProfile {
   id: string;
-  username: string;
+  nickname: string;
   avatarUrl?: string;
   createdAt: number;
 

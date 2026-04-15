@@ -99,6 +99,7 @@ const PLACEHOLDER_QUESTS: QuestStub[] = [
 
 export default function QuestsScreen() {
   const profile = useAppStore(selectProfile);
+  const displayName = profile.nickname?.trim() ? profile.nickname : 'Chasseur';
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-[#0B0F19]">
@@ -132,7 +133,7 @@ export default function QuestsScreen() {
             <Text className="ml-2 text-sm text-slate-300">
               Bienvenue,{' '}
               <Text className="font-bold text-blue-300">
-                Chasseur {profile.username}
+                Chasseur {displayName}
               </Text>
               .
             </Text>

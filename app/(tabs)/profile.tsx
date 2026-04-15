@@ -1,4 +1,6 @@
 import {
+  Check,
+  Edit2,
   Edit3,
   Gem,
   HardHat,
@@ -10,9 +12,11 @@ import {
   Sword,
   Swords,
   Target,
+  X,
   type LucideIcon,
 } from 'lucide-react-native';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ALL_MUSCLE_IDS, MUSCLE_GROUP_BY_ID } from '@/data/muscleGroups';
@@ -106,8 +110,28 @@ export default function ProfileScreen() {
   const playerClass = useAppStore(selectPlayerClass);
   const equipped = useAppStore(selectEquipped);
   const bodyweightKg = useAppStore(selectBodyweightKg);
+  const updateNickname = useAppStore(s => s.updateNickname);
+
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [draftName, setDraftName] = useState(profile.nickname);
 
   const ClassIcon = PLAYER_CLASS_ICON[profile.playerClassId] ?? Sprout;
+
+  const commitNickname = () => {
+    const cleaned = draftName.trim().slice(0, 24);
+    updateNickname(cleaned);
+    setIsEditingName(false);
+  };
+
+  const cancelNicknameEdit = () => {
+    setDraftName(profile.nickname);
+    setIsEditingName(false);
+  };
+
+  const openNicknameEdit = () => {
+    setDraftName(profile.nickname);
+    setIsEditingName(true);
+  };
 
   const globalXpPercent = Math.min(
     100,
@@ -144,14 +168,61 @@ export default function ProfileScreen() {
 
           {/* Hunter identity + Level */}
           <View className="mt-6 flex-row items-end justify-between">
-            <View className="flex-1">
+            <View className="flex-1 pr-4">
               <Text className="text-[10px] uppercase tracking-widest text-slate-500">
                 Chasseur
               </Text>
-              <Text className="mt-0.5 text-2xl font-bold text-slate-100">
-                {profile.username}
-              </Text>
+
+              {isEditingName ? (
+                <View className="mt-1 flex-row items-center">
+                  <TextInput
+                    value={draftName}
+                    onChangeText={setDraftName}
+                    onSubmitEditing={commitNickname}
+                    autoFocus
+                    maxLength={24}
+                    placeholder="Ton pseudo…"
+                    placeholderTextColor="#475569"
+                    selectionColor="#60A5FA"
+                    className="flex-1 rounded-lg border border-blue-500/70 bg-slate-900/80 px-3 py-2 text-base font-bold text-blue-100"
+                    style={{
+                      textShadowColor: '#60A5FA',
+                      textShadowRadius: 6,
+                    }}
+                  />
+                  <Pressable
+                    onPress={commitNickname}
+                    className="ml-2 rounded-lg border border-blue-500/60 bg-blue-500/20 px-3 py-2 active:opacity-60"
+                  >
+                    <View className="flex-row items-center">
+                      <Check size={14} color="#93C5FD" />
+                      <Text className="ml-1 text-[11px] font-bold uppercase tracking-widest text-blue-200">
+                        Valider
+                      </Text>
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    onPress={cancelNicknameEdit}
+                    className="ml-2 rounded-lg border border-slate-700 bg-slate-800/60 p-2 active:opacity-60"
+                  >
+                    <X size={14} color="#94A3B8" />
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={openNicknameEdit}
+                  className="mt-0.5 flex-row items-center active:opacity-60"
+                >
+                  <Text className="text-2xl font-bold text-slate-100">
+                    {profile.nickname?.trim() ? profile.nickname : 'Chasseur'}
+                  </Text>
+                  <View className="ml-2 rounded-md border border-blue-500/40 bg-blue-500/10 p-1">
+                    <Edit2 size={12} color="#93C5FD" />
+                  </View>
+                </Pressable>
+              )}
             </View>
+
             <View className="items-end">
               <Text className="text-[10px] uppercase tracking-widest text-slate-500">
                 Niveau

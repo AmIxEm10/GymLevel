@@ -104,7 +104,7 @@ function createDefaultInventory(): Inventory {
 function createDefaultProfile(now: number): UserProfile {
   return {
     id: 'local_user',
-    username: 'Chasseur',
+    nickname: 'Chasseur',
     createdAt: now,
 
     playerClassId: 'novice',
@@ -168,6 +168,9 @@ interface AppState {
   // --- Lifecycle ----------------------------------------------------------
   initializeApp: () => void;
   resetProfile: () => void;
+
+  // --- Identity -----------------------------------------------------------
+  updateNickname: (name: string) => void;
 
   // --- Preferences --------------------------------------------------------
   updatePreferences: (patch: Partial<UserPreferences>) => void;
@@ -280,6 +283,17 @@ export const useAppStore = create<AppState>()(
           needsOnboarding: true,
           lastLootDrop: null,
         });
+      },
+
+      // -------------------------------------------------------------------
+      // Identity
+      // -------------------------------------------------------------------
+      updateNickname: name => {
+        // Trim + cap at 24 chars to keep the UI header tidy.
+        const cleaned = name.trim().slice(0, 24);
+        set(s => ({
+          profile: { ...s.profile, nickname: cleaned },
+        }));
       },
 
       // -------------------------------------------------------------------
@@ -752,7 +766,21 @@ export const useAppStore = create<AppState>()(
         lastQuestGenerationAt: state.lastQuestGenerationAt,
         lastDeconditioningResult: state.lastDeconditioningResult,
       }),
-      version: 1,
+      version: 2,
+      migrate: (persistedState, version) => {
+        // v1 → v2 : UserProfile.username was renamed to UserProfile.nickname.
+        if (version < 2) {
+          const s = persistedState as { profile?: Record<string, unknown> } | null;
+          if (s?.profile && typeof s.profile === 'object') {
+            const p = s.profile as Record<string, unknown>;
+            if (typeof p.nickname !== 'string') {
+              p.nickname = typeof p.username === 'string' ? p.username : 'Chasseur';
+            }
+            delete p.username;
+          }
+        }
+        return persistedState as never;
+      },
     },
   ),
 );
