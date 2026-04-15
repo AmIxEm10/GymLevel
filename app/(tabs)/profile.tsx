@@ -1,10 +1,12 @@
 import {
+  Activity,
   Check,
   Edit2,
-  Edit3,
   Gem,
   HardHat,
-  Heart,
+  HeartPulse,
+  Ruler,
+  Scale,
   Shield,
   Shirt,
   Sparkles,
@@ -12,6 +14,7 @@ import {
   Sword,
   Swords,
   Target,
+  Wind,
   X,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -21,10 +24,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BodyView } from '@/components/BodyView';
 import { FatigueBar, computeGlobalFatigue } from '@/components/FatigueBar';
+import { GradientBar } from '@/components/GradientBar';
 import { GrowthChart } from '@/components/GrowthChart';
 import { RANK_INFO, RankEmblem, computeRank } from '@/components/RankEmblem';
 import {
-  selectBodyweightKg,
   selectEquipped,
   selectPlayerClass,
   selectProfile,
@@ -99,7 +102,6 @@ export default function ProfileScreen() {
   const profile = useAppStore(selectProfile);
   const playerClass = useAppStore(selectPlayerClass);
   const equipped = useAppStore(selectEquipped);
-  const bodyweightKg = useAppStore(selectBodyweightKg);
   const history = useAppStore(s => s.workoutHistory);
   const updateNickname = useAppStore(s => s.updateNickname);
 
@@ -130,14 +132,14 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-[#0B0F19]">
+    <SafeAreaView edges={['top']} className="flex-1 bg-[#020617]">
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
       >
         {/* ================================================== HEADER */}
-        <View className="px-5 pt-4 pb-6">
+        <View className="px-5 pt-4 pb-4">
           <Text className="text-[10px] font-semibold tracking-[6px] text-blue-400/70">
             LE SYSTÈME
           </Text>
@@ -155,90 +157,126 @@ export default function ProfileScreen() {
 
           <View className="mt-3 h-[2px] w-24 bg-blue-400" />
           <View className="mt-[2px] h-[1px] w-16 bg-cyan-400/60" />
+        </View>
 
-          {/* Hunter identity — nickname edit */}
-          <View className="mt-5">
-            <Text className="text-[10px] uppercase tracking-widest text-slate-500">
-              Chasseur
-            </Text>
+        {/* =========================== LEVEL HERO + NICKNAME */}
+        <View className="mx-5 mb-4 overflow-hidden rounded-3xl border border-[#1e293b] bg-slate-950/60 p-5">
+          <View className="flex-row items-start justify-between">
+            <View className="flex-1">
+              <Text className="text-[10px] uppercase tracking-[3px] text-slate-500">
+                Chasseur
+              </Text>
 
-            {isEditingName ? (
-              <View className="mt-1 flex-row items-center">
-                <TextInput
-                  value={draftName}
-                  onChangeText={setDraftName}
-                  onSubmitEditing={commitNickname}
-                  autoFocus
-                  maxLength={24}
-                  placeholder="Ton pseudo…"
-                  placeholderTextColor="#475569"
-                  selectionColor="#60A5FA"
-                  className="flex-1 rounded-lg border border-blue-500/70 bg-slate-900/80 px-3 py-2 text-base font-bold text-blue-100"
-                  style={{
-                    textShadowColor: '#60A5FA',
-                    textShadowRadius: 6,
-                  }}
-                />
+              {isEditingName ? (
+                <View className="mt-1 flex-row items-center">
+                  <TextInput
+                    value={draftName}
+                    onChangeText={setDraftName}
+                    onSubmitEditing={commitNickname}
+                    autoFocus
+                    maxLength={24}
+                    placeholder="Ton pseudo…"
+                    placeholderTextColor="#475569"
+                    selectionColor="#22D3EE"
+                    className="flex-1 rounded-lg border border-cyan-400/60 bg-slate-900/80 px-3 py-2 text-base font-bold text-cyan-100"
+                    style={{ textShadowColor: '#22D3EE', textShadowRadius: 6 }}
+                  />
+                  <Pressable
+                    onPress={commitNickname}
+                    className="ml-2 rounded-lg border border-cyan-400/60 bg-cyan-500/20 px-3 py-2 active:opacity-60"
+                  >
+                    <Check size={14} color="#A5F3FC" />
+                  </Pressable>
+                  <Pressable
+                    onPress={cancelNicknameEdit}
+                    className="ml-1.5 rounded-lg border border-slate-700 bg-slate-800/60 p-2 active:opacity-60"
+                  >
+                    <X size={14} color="#94A3B8" />
+                  </Pressable>
+                </View>
+              ) : (
                 <Pressable
-                  onPress={commitNickname}
-                  className="ml-2 rounded-lg border border-blue-500/60 bg-blue-500/20 px-3 py-2 active:opacity-60"
+                  onPress={openNicknameEdit}
+                  className="mt-0.5 flex-row items-center active:opacity-60"
                 >
-                  <View className="flex-row items-center">
-                    <Check size={14} color="#93C5FD" />
-                    <Text className="ml-1 text-[11px] font-bold uppercase tracking-widest text-blue-200">
-                      Valider
-                    </Text>
+                  <Text
+                    className="text-xl font-black text-slate-100"
+                    numberOfLines={1}
+                  >
+                    {profile.nickname?.trim() ? profile.nickname : 'Chasseur'}
+                  </Text>
+                  <View className="ml-2 rounded-md border border-cyan-400/40 bg-cyan-500/10 p-1">
+                    <Edit2 size={11} color="#67E8F9" />
                   </View>
                 </Pressable>
-                <Pressable
-                  onPress={cancelNicknameEdit}
-                  className="ml-2 rounded-lg border border-slate-700 bg-slate-800/60 p-2 active:opacity-60"
-                >
-                  <X size={14} color="#94A3B8" />
-                </Pressable>
-              </View>
-            ) : (
-              <Pressable
-                onPress={openNicknameEdit}
-                className="mt-0.5 flex-row items-center active:opacity-60"
+              )}
+
+              <Text className="mt-3 text-[9px] uppercase tracking-[4px] text-cyan-400/70">
+                NIVEAU
+              </Text>
+            </View>
+
+            {/* HUGE level number */}
+            <View className="items-end">
+              <Text
+                className="text-7xl font-black leading-none text-slate-100"
+                style={{
+                  textShadowColor: '#22D3EE',
+                  textShadowRadius: 22,
+                  textShadowOffset: { width: 0, height: 0 },
+                  letterSpacing: -2,
+                }}
               >
-                <Text className="text-2xl font-bold text-slate-100">
-                  {profile.nickname?.trim() ? profile.nickname : 'Chasseur'}
-                </Text>
-                <View className="ml-2 rounded-md border border-blue-500/40 bg-blue-500/10 p-1">
-                  <Edit2 size={12} color="#93C5FD" />
-                </View>
-              </Pressable>
-            )}
+                {profile.level}
+              </Text>
+            </View>
           </View>
 
-          {/* Global XP bar (compact) */}
-          <View className="mt-3">
-            <View className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-              <View
-                className="h-full rounded-full bg-blue-500"
-                style={{ width: `${globalXpPercent}%` }}
-              />
+          {/* XP bar — full width with % on the right */}
+          <View className="mt-4 flex-row items-center">
+            <View className="flex-1">
+              <GradientBar percent={globalXpPercent} height={6} />
             </View>
-            <View className="mt-1 flex-row justify-between">
-              <Text className="text-[10px] text-slate-500">
-                Niveau {profile.level} — {Math.round(profile.totalXp)} /{' '}
-                {profile.xpToNextLevel} XP
-              </Text>
-              <Text className="text-[10px] text-blue-400/80">
-                Prochain niveau
-              </Text>
-            </View>
+            <Text
+              className="ml-3 text-[11px] font-black tracking-wider"
+              style={{
+                color: '#67E8F9',
+                textShadowColor: '#22D3EE',
+                textShadowRadius: 6,
+              }}
+            >
+              {Math.round(globalXpPercent)}%
+            </Text>
           </View>
+          <Text className="mt-1 text-[10px] text-slate-600">
+            {Math.round(profile.totalXp)} / {profile.xpToNextLevel} XP vers le
+            prochain niveau
+          </Text>
+        </View>
+
+        {/* =========================== BIOMETRIC STATS GRID 3×2 */}
+        <View className="mx-5 mb-5">
+          <View className="mb-2 flex-row items-end justify-between">
+            <Text
+              className="text-sm font-bold tracking-[2px] text-slate-100"
+              style={{ textShadowColor: '#22D3EE', textShadowRadius: 6 }}
+            >
+              BIOMÉTRIE
+            </Text>
+            <Text className="text-[10px] uppercase tracking-widest text-slate-500">
+              Indicateurs vitaux
+            </Text>
+          </View>
+          <BiometricGrid profile={profile} />
         </View>
 
         {/* ================================================== RANK + CLASS + FATIGUE */}
         <View className="px-5">
           <View
-            className="rounded-2xl border border-blue-500/30 bg-white/[0.04] p-4"
+            className="rounded-2xl border border-[#1e293b] bg-slate-950/60 p-4"
             style={{
-              shadowColor: '#60A5FA',
-              shadowOpacity: 0.3,
+              shadowColor: '#22D3EE',
+              shadowOpacity: 0.25,
               shadowRadius: 18,
               shadowOffset: { width: 0, height: 0 },
             }}
@@ -281,20 +319,6 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Bodyweight row */}
-          <View className="mt-3 flex-row items-center justify-between rounded-2xl border border-blue-500/20 bg-white/5 px-4 py-3">
-            <View>
-              <Text className="text-[10px] uppercase tracking-widest text-slate-500">
-                Poids du corps
-              </Text>
-              <Text className="mt-0.5 text-xl font-bold text-slate-100">
-                {bodyweightKg !== null ? `${bodyweightKg} kg` : 'Non défini'}
-              </Text>
-            </View>
-            <Pressable className="rounded-lg border border-blue-500/40 bg-blue-500/10 p-2 active:opacity-60">
-              <Edit3 size={16} color="#93C5FD" />
-            </Pressable>
-          </View>
         </View>
 
         {/* ================================================== BODY MONITOR */}
@@ -424,6 +448,92 @@ function EquipmentSlotCard({
           {firstBonus.description}
         </Text>
       ) : null}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Biometric grid (3×2)
+// ---------------------------------------------------------------------------
+
+function BiometricGrid({
+  profile,
+}: {
+  profile: ReturnType<typeof selectProfile>;
+}) {
+  const prefs = profile.preferences;
+  const height = prefs.heightCm ?? null;
+  const weight = prefs.bodyweightKg;
+  const bmi =
+    height && weight && height > 0
+      ? Math.round((weight / Math.pow(height / 100, 2)) * 10) / 10
+      : null;
+
+  // AVM — Activité Volumique Moyenne (kT over last 7 days across all muscles)
+  const avmKg = Object.values(profile.muscleStats).reduce(
+    (sum, m) => sum + m.volumeLast7d,
+    0,
+  );
+  const avmDisplay =
+    avmKg >= 1000 ? `${(avmKg / 1000).toFixed(1)}k` : `${Math.round(avmKg)}`;
+
+  const tiles = [
+    { Icon: Ruler,      label: 'HT',  value: height !== null ? `${height}` : '—', unit: 'cm' },
+    { Icon: Scale,      label: 'PDS', value: weight !== null ? `${weight}` : '—', unit: 'kg' },
+    { Icon: Activity,   label: 'IMC', value: bmi !== null ? `${bmi}` : '—', unit: '' },
+    { Icon: Sparkles,   label: 'AVM', value: avmDisplay, unit: 'kg' },
+    { Icon: HeartPulse, label: 'BPM', value: prefs.restingBpm !== undefined && prefs.restingBpm !== null ? `${prefs.restingBpm}` : '—', unit: '' },
+    { Icon: Wind,       label: 'VO2', value: prefs.vo2max !== undefined && prefs.vo2max !== null ? `${prefs.vo2max}` : '—', unit: '' },
+  ];
+
+  return (
+    <View className="flex-row flex-wrap">
+      {tiles.map(t => (
+        <View key={t.label} className="w-1/3 p-1">
+          <BioTile {...t} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function BioTile({
+  Icon,
+  label,
+  value,
+  unit,
+}: {
+  Icon: LucideIcon;
+  label: string;
+  value: string;
+  unit?: string;
+}) {
+  return (
+    <View
+      className="rounded-2xl border border-[#1e293b] bg-slate-950/60 px-3 py-3"
+    >
+      <View className="flex-row items-center">
+        <Icon size={11} color="#67E8F9" strokeWidth={2} />
+        <Text className="ml-1 text-[9px] font-black uppercase tracking-[3px] text-slate-500">
+          {label}
+        </Text>
+      </View>
+      <View className="mt-1 flex-row items-baseline">
+        <Text
+          className="text-xl font-black text-slate-100"
+          style={{
+            textShadowColor: '#22D3EE',
+            textShadowRadius: 8,
+          }}
+        >
+          {value}
+        </Text>
+        {unit ? (
+          <Text className="ml-1 text-[10px] font-bold text-slate-500">
+            {unit}
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 }

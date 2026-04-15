@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { GradientBar } from '@/components/GradientBar';
 import { EXERCISES_BY_ID } from '@/data/exercises';
 import {
   selectActiveSession,
@@ -237,7 +238,7 @@ export default function WorkoutActiveScreen() {
         >
           {/* Central Set Block */}
           <View
-            className={`rounded-3xl border-2 bg-black/60 p-6 ${borderCls}`}
+            className={`rounded-3xl border-2 bg-slate-950/60 p-6 ${borderCls}`}
             style={{
               shadowColor: glowColor,
               shadowOpacity: 0.8,
@@ -245,43 +246,81 @@ export default function WorkoutActiveScreen() {
               shadowOffset: { width: 0, height: 0 },
             }}
           >
-            {/* Weight row */}
-            <Text className="text-[10px] font-semibold uppercase tracking-[4px] text-slate-400">
-              Poids (kg)
-            </Text>
-            <View className="mt-2 flex-row items-center justify-between">
-              <AdjustButton onPress={() => adjustWeight(-2.5)} icon="minus" />
-              <Text
-                className="text-6xl font-black text-white"
-                style={{
-                  textShadowColor: glowColor,
-                  textShadowRadius: 14,
-                  textShadowOffset: { width: 0, height: 0 },
-                }}
-              >
-                {draftWeight}
+            {/* Set progress bar at top — Série X / Y */}
+            <View className="mb-5 flex-row items-center">
+              <View className="flex-1">
+                <GradientBar
+                  percent={
+                    currentWE && currentWE.targetSets
+                      ? Math.min(100, ((currentWE.sets.length) / currentWE.targetSets) * 100)
+                      : 0
+                  }
+                  height={4}
+                />
+              </View>
+              <Text className="ml-3 text-[10px] font-black uppercase tracking-[3px] text-cyan-300">
+                Série {(currentWE?.sets.length ?? 0) + 1}
+                {currentWE?.targetSets ? ` / ${currentWE.targetSets}` : ''}
               </Text>
-              <AdjustButton onPress={() => adjustWeight(2.5)} icon="plus" />
             </View>
 
-            {/* Reps row */}
-            <View className="mt-5 border-t border-slate-800 pt-5">
-              <Text className="text-[10px] font-semibold uppercase tracking-[4px] text-slate-400">
-                Répétitions
-              </Text>
-              <View className="mt-2 flex-row items-center justify-between">
-                <AdjustButton onPress={() => adjustReps(-1)} icon="minus" />
+            {/* Reps HERO */}
+            <Text className="text-center text-[10px] font-black uppercase tracking-[6px] text-cyan-400/80">
+              Répétitions
+            </Text>
+            <View className="mt-3 flex-row items-center justify-between">
+              <AdjustButton onPress={() => adjustReps(-1)} icon="minus" />
+              <View className="flex-1 items-center">
                 <Text
-                  className="text-6xl font-black text-white"
+                  className="text-8xl font-black text-white"
                   style={{
                     textShadowColor: glowColor,
-                    textShadowRadius: 14,
+                    textShadowRadius: 24,
                     textShadowOffset: { width: 0, height: 0 },
+                    letterSpacing: -4,
                   }}
                 >
                   {draftReps}
                 </Text>
-                <AdjustButton onPress={() => adjustReps(1)} icon="plus" />
+                <Text
+                  className="mt-1 text-[9px] font-black uppercase tracking-[6px] text-cyan-400/60"
+                >
+                  Reps
+                </Text>
+              </View>
+              <AdjustButton onPress={() => adjustReps(1)} icon="plus" />
+            </View>
+
+            {/* Weight — secondary row */}
+            <View className="mt-6 flex-row items-center justify-between rounded-2xl border border-[#1e293b] bg-slate-900/60 px-4 py-3">
+              <View className="flex-1">
+                <Text className="text-[9px] font-black uppercase tracking-[4px] text-slate-500">
+                  Poids
+                </Text>
+                <Text
+                  className="text-3xl font-black text-slate-100"
+                  style={{
+                    textShadowColor: glowColor,
+                    textShadowRadius: 10,
+                  }}
+                >
+                  {draftWeight}
+                  <Text className="text-sm font-bold text-slate-500"> kg</Text>
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-2">
+                <Pressable
+                  onPress={() => adjustWeight(-2.5)}
+                  className="h-10 w-10 items-center justify-center rounded-xl border border-blue-500/40 bg-blue-500/10 active:bg-blue-500/25"
+                >
+                  <Minus size={18} color="#93C5FD" strokeWidth={2.5} />
+                </Pressable>
+                <Pressable
+                  onPress={() => adjustWeight(2.5)}
+                  className="h-10 w-10 items-center justify-center rounded-xl border border-blue-500/40 bg-blue-500/10 active:bg-blue-500/25"
+                >
+                  <Plus size={18} color="#93C5FD" strokeWidth={2.5} />
+                </Pressable>
               </View>
             </View>
 
@@ -291,10 +330,10 @@ export default function WorkoutActiveScreen() {
               className={`mt-6 flex-row items-center justify-center rounded-2xl border-2 py-5 active:opacity-80 ${
                 isValidated
                   ? 'border-emerald-400 bg-emerald-500/20'
-                  : 'border-blue-400 bg-blue-500/20'
+                  : 'border-cyan-400 bg-cyan-500/15'
               }`}
               style={{
-                shadowColor: isValidated ? '#10B981' : '#60A5FA',
+                shadowColor: isValidated ? '#10B981' : '#22D3EE',
                 shadowOpacity: 0.9,
                 shadowRadius: 22,
                 shadowOffset: { width: 0, height: 0 },
@@ -302,15 +341,15 @@ export default function WorkoutActiveScreen() {
             >
               <Check
                 size={24}
-                color={isValidated ? '#6EE7B7' : '#93C5FD'}
+                color={isValidated ? '#6EE7B7' : '#A5F3FC'}
                 strokeWidth={3}
               />
               <Text
                 className={`ml-2 text-base font-black uppercase tracking-[5px] ${
-                  isValidated ? 'text-emerald-200' : 'text-blue-100'
+                  isValidated ? 'text-emerald-200' : 'text-cyan-100'
                 }`}
                 style={{
-                  textShadowColor: isValidated ? '#10B981' : '#60A5FA',
+                  textShadowColor: isValidated ? '#10B981' : '#22D3EE',
                   textShadowRadius: 10,
                   textShadowOffset: { width: 0, height: 0 },
                 }}

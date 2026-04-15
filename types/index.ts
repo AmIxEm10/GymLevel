@@ -480,10 +480,16 @@ export interface UserPreferences {
    * User's bodyweight in kg — used as `weight` for bodyweight exercises
    * and as the reference for Tank's "heavy_compound" ratio bonus.
    * `null` means the value has not been set yet: the onboarding screen
-   * ("Évaluation du Système") MUST collect it before any session starts.
-   * `initializeApp()` short-circuits when this is null.
+   * MUST collect it before any session starts.
    */
   bodyweightKg: number | null;
+
+  // Optional biometric stats for the Statut screen — can stay null
+  // until we ship a biometric editor.
+  heightCm?: number | null;
+  restingBpm?: number | null;
+  vo2max?: number | null;
+
   defaultRestSeconds: number;
   theme: Theme;
   hapticFeedback: boolean;

@@ -152,7 +152,7 @@ export default function WorkoutSelectionScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-[#0B0F19]">
+    <SafeAreaView edges={['top']} className="flex-1 bg-[#020617]">
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 48 }}

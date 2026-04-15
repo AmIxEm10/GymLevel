@@ -13,6 +13,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { GradientBar } from '@/components/GradientBar';
 import { RANK_META } from '@/data/ranks';
 import {
   selectActiveQuests,
@@ -72,7 +73,7 @@ export default function QuestsScreen() {
   const completedCount = activeQuests.filter(q => q.status === 'completed').length;
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-[#0B0F19]">
+    <SafeAreaView edges={['top']} className="flex-1 bg-[#020617]">
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 48 }}
@@ -224,108 +225,102 @@ function QuestCard({ quest }: { quest: Quest }) {
 
   return (
     <Pressable
-      className={`rounded-2xl border ${cat.border} ${cat.bg} p-4 active:opacity-80`}
+      className="overflow-hidden rounded-2xl border border-[#1e293b] bg-slate-950/60 p-4 active:opacity-80"
       style={{
         shadowColor: cat.color,
-        shadowOpacity: isCompleted ? 0.8 : 0.35,
-        shadowRadius: isCompleted ? 14 : 8,
+        shadowOpacity: isCompleted ? 0.6 : 0.18,
+        shadowRadius: isCompleted ? 16 : 10,
         shadowOffset: { width: 0, height: 0 },
       }}
     >
-      <View className="flex-row items-start">
+      {/* Top row : circular icon + content + XP */}
+      <View className="flex-row items-center">
+        {/* Circular icon with soft colored glow */}
         <View
-          className={`h-11 w-11 items-center justify-center rounded-xl border ${cat.border} bg-white/5`}
+          className="h-14 w-14 items-center justify-center rounded-full"
+          style={{
+            borderWidth: 1.5,
+            borderColor: cat.color,
+            backgroundColor: 'rgba(255,255,255,0.04)',
+            shadowColor: cat.color,
+            shadowOpacity: 0.7,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 0 },
+          }}
         >
-          <Icon size={22} color={cat.color} strokeWidth={2} />
+          <Icon size={24} color={cat.color} strokeWidth={2} />
         </View>
 
+        {/* Content (title left-aligned) */}
         <View className="ml-3 flex-1">
-          <View className="flex-row flex-wrap items-center justify-between">
-            <View className="flex-row items-center">
-              {/* Rank chip */}
-              <View
-                className="rounded-md px-1.5 py-0.5"
-                style={{
-                  borderWidth: 1,
-                  borderColor: rankMeta.color,
-                  backgroundColor: 'rgba(255,255,255,0.04)',
-                  shadowColor: rankMeta.glow,
-                  shadowOpacity: 0.6,
-                  shadowRadius: 6,
-                  shadowOffset: { width: 0, height: 0 },
-                }}
-              >
-                <Text
-                  className="text-[9px] font-black uppercase tracking-[3px]"
-                  style={{
-                    color: rankMeta.color,
-                    textShadowColor: rankMeta.glow,
-                    textShadowRadius: 4,
-                  }}
-                >
-                  QUÊTE DE RANG {quest.rank}
-                </Text>
-              </View>
-
-              {/* Category chip */}
-              <View
-                className={`ml-1.5 rounded-md border px-1.5 py-0.5 ${cat.border}`}
-                style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
-              >
-                <Text
-                  className="text-[9px] font-bold uppercase tracking-widest"
-                  style={{ color: cat.color }}
-                >
-                  {cat.label}
-                </Text>
-              </View>
-            </View>
-
-            <View className="flex-row items-center">
-              <Trophy size={12} color="#FBBF24" strokeWidth={2} />
-              <Text className="ml-1 text-[11px] font-bold text-amber-300">
-                +{quest.xpReward} XP
-              </Text>
-            </View>
+          <View className="flex-row items-center">
+            <Text
+              className="text-[9px] font-black uppercase tracking-[3px]"
+              style={{
+                color: rankMeta.color,
+                textShadowColor: rankMeta.glow,
+                textShadowRadius: 5,
+              }}
+            >
+              RANG {quest.rank}
+            </Text>
+            <Text className="mx-1.5 text-[9px] text-slate-700">·</Text>
+            <Text
+              className="text-[9px] font-bold uppercase tracking-widest"
+              style={{ color: cat.color }}
+            >
+              {cat.label}
+            </Text>
           </View>
 
-          <Text className="mt-1 text-base font-bold text-slate-100">
+          <Text className="mt-0.5 text-base font-black text-slate-100">
             {quest.title}
           </Text>
-          <Text className="mt-0.5 text-xs leading-snug text-slate-400">
+          <Text
+            numberOfLines={1}
+            className="mt-0.5 text-[11px] leading-snug text-slate-500"
+          >
             {quest.description}
+          </Text>
+        </View>
+
+        {/* XP reward */}
+        <View className="ml-3 items-end">
+          <View className="flex-row items-center">
+            <Trophy size={10} color="#FBBF24" strokeWidth={2} />
+            <Text className="ml-0.5 text-[10px] font-black text-amber-300">
+              +{quest.xpReward}
+            </Text>
+          </View>
+          <Text className="mt-0.5 text-[8px] uppercase tracking-widest text-slate-600">
+            {DIFFICULTY_LABEL[quest.difficulty]}
           </Text>
         </View>
       </View>
 
-      <View className="mt-3">
-        <View className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-          <View
-            className="h-full rounded-full"
-            style={{
-              width: `${percent}%`,
-              backgroundColor: isCompleted ? '#FBBF24' : cat.color,
-            }}
-          />
-        </View>
-        <View className="mt-1 flex-row items-center justify-between">
-          <Text className="text-[10px] text-slate-500">
+      {/* Full-width progress strip at the bottom */}
+      <View className="mt-4">
+        <View className="mb-1.5 flex-row items-center justify-between">
+          <Text className="text-[10px] font-bold tracking-widest text-slate-500">
             {formatProgress(quest)}
           </Text>
-          <View className="flex-row items-center">
-            <Text
-              className="text-[10px] font-semibold"
-              style={{ color: isCompleted ? '#FBBF24' : cat.color }}
-            >
-              {isCompleted ? 'PRÊT À RÉCLAMER' : `${percent}%`}
-            </Text>
-            {!isCompleted ? (
-              <Text className="ml-2 text-[9px] uppercase tracking-widest text-slate-600">
-                {DIFFICULTY_LABEL[quest.difficulty]}
-              </Text>
-            ) : null}
-          </View>
+          <Text
+            className="text-[10px] font-black tracking-wider"
+            style={{
+              color: isCompleted ? '#FBBF24' : '#67E8F9',
+              textShadowColor: isCompleted ? '#FBBF24' : '#22D3EE',
+              textShadowRadius: 6,
+            }}
+          >
+            {isCompleted ? 'PRÊT À RÉCLAMER' : `${percent}%`}
+          </Text>
         </View>
+        <GradientBar
+          percent={percent}
+          height={6}
+          startColor={isCompleted ? '#D97706' : '#1e40af'}
+          endColor={isCompleted ? '#FBBF24' : '#22d3ee'}
+        />
       </View>
 
       {/* Claim CTA — only when the quest is completed */}

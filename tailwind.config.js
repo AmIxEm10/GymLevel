@@ -10,7 +10,7 @@ module.exports = {
       colors: {
         // "The System" — Solo Leveling palette
         system: {
-          bg: '#0B0F19',
+          bg: '#020617',
           panel: '#101624',
           border: '#1E293B',
           neon: '#60A5FA',

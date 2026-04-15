@@ -44,7 +44,7 @@ export function RankEmblem({ level, size = 84 }: Props) {
         <Defs>
           <LinearGradient id="rankFill" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={meta.color} stopOpacity={0.35} />
-            <Stop offset="1" stopColor="#0B0F19" stopOpacity={0.9} />
+            <Stop offset="1" stopColor="#020617" stopOpacity={0.9} />
           </LinearGradient>
           <LinearGradient id="rankStroke" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor={meta.glow} stopOpacity={1} />
