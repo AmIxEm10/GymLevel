@@ -1,8 +1,8 @@
 # GymLevel
 
-Application mobile de fitness gamifiée (RPG) — React Native · Expo · TypeScript · Zustand.
+Application mobile de fitness gamifiée (RPG) — React Native · Expo · TypeScript · Zustand · NativeWind.
 
-> **État actuel** : architecture et logique métier (pas d'UI). Branche de développement : `claude/fitness-rpg-app-architecture-YqTVA`.
+> **État actuel** : backend verrouillé, première UI (écran Statut). Branche de développement : `claude/fitness-rpg-app-architecture-YqTVA`.
 
 ## Stack
 
@@ -18,7 +18,11 @@ Application mobile de fitness gamifiée (RPG) — React Native · Expo · TypeSc
 
 ```
 GymLevel/
-├── app/                        # Écrans Expo Router (UI — à venir)
+├── app/
+│   ├── _layout.tsx             # Root layout (boot initializeApp, safe area)
+│   └── (tabs)/
+│       ├── _layout.tsx         # Tabs (Statut pour l'instant)
+│       └── profile.tsx         # Écran STATUT (Solo Leveling)
 ├── components/                 # Composants UI (à venir)
 ├── store/
 │   └── useAppStore.ts          # Store Zustand unique — orchestre tout
