@@ -111,9 +111,9 @@ export default function QuestsScreen() {
             Directives quotidiennes calibrées sur ton rang et ton niveau.
           </Text>
 
-          {/* Start workout CTA — routes to Battle Mode */}
+          {/* Start workout CTA — routes to the template picker */}
           <Pressable
-            onPress={() => router.push('/workout/active')}
+            onPress={() => router.push('/workout/selection')}
             className="mt-5 flex-row items-center justify-center rounded-2xl border-2 border-emerald-400/70 bg-emerald-500/15 py-4 active:opacity-70"
             style={{
               shadowColor: '#10B981',

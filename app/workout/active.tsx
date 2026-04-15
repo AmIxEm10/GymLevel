@@ -35,9 +35,6 @@ export default function WorkoutActiveScreen() {
   const activeSession = useAppStore(selectActiveSession);
   const bodyweightKg = useAppStore(selectBodyweightKg);
   const setBodyweight = useAppStore(s => s.setBodyweight);
-  const startSessionFromTemplate = useAppStore(
-    s => s.startSessionFromTemplate,
-  );
   const addSet = useAppStore(s => s.addSet);
   const endSession = useAppStore(s => s.endSession);
   const abandonSession = useAppStore(s => s.abandonSession);
@@ -56,12 +53,13 @@ export default function WorkoutActiveScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Bootstrap a session if none active.
+  // If no active session (e.g. direct deep-link to /workout/active),
+  // redirect to the Salle des Portes so the user can pick a template.
   useEffect(() => {
     if (!activeSession) {
-      startSessionFromTemplate('tpl_push_intermediate');
+      router.replace('/workout/selection');
     }
-  }, [activeSession, startSessionFromTemplate]);
+  }, [activeSession]);
 
   // Chronomètre — tick every second from activeSession.startedAt
   useEffect(() => {
