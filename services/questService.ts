@@ -77,10 +77,16 @@ function scaleTarget(
 ): number {
   let scaled = tpl.baseTarget * (1 + stats.level * tpl.levelScaling);
 
-  // PR-aware scaling: for max_weight quests, target = max(scaled, PR × 1.05)
-  // so the goal always sits a notch above the athlete's current record.
+  // PR-aware hybrid scaling — target always sits a notch above the user's
+  // current record so the objective remains challenging as they progress.
+  //
+  // STRENGTH (max_weight)  → anchored on peakWeightPr × 1.05
+  // VOLUME  (volume_total) → anchored on peakVolumePr × 1.05
   if (tpl.type === 'max_weight' && stats.peakWeightPr > 0) {
     scaled = Math.max(scaled, stats.peakWeightPr * 1.05);
+  }
+  if (tpl.type === 'volume_total' && stats.peakVolumePr > 0) {
+    scaled = Math.max(scaled, stats.peakVolumePr * 1.05);
   }
 
   // Round durations to the nearest 30s, reps to integer, kg to nearest 5.

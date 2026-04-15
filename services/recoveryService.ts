@@ -24,7 +24,6 @@ import {
   DECONDITIONING_MAX_PENALTY,
   DECONDITIONING_THRESHOLD_DAYS,
   OVERLOAD_VOLUME_24H,
-  STATUS_HOURS,
 } from '@/constants/gamification';
 import { ALL_MUSCLE_IDS, MUSCLE_SIZE } from '@/data/muscleGroups';
 import { applyXpToLevel } from './gamificationService';
@@ -83,53 +82,63 @@ export function decayRollingVolumes(
 }
 
 // ---------------------------------------------------------------------------
-// Status re-evaluation
+// Status re-evaluation — PR-aware (spec V1)
 // ---------------------------------------------------------------------------
+
+/**
+ * Status thresholds expressed as fractions of the user's peakVolumePr.
+ * Combined with the 2 %/h decay in decayRollingVolumes(), the muscle
+ * status naturally ramps down in real time without hard clocks.
+ *
+ *   volumeLast24h / peakVolumePr
+ *     < 0.05  →  frais
+ *     < 0.30  →  actif
+ *     < 0.70  →  fatigue
+ *     ≥ 0.70  →  epuise
+ */
+export const STATUS_VOLUME_RATIO = {
+  FRAIS_MAX:   0.05,
+  ACTIF_MAX:   0.30,
+  FATIGUE_MAX: 0.70,
+} as const;
 
 export function computeMuscleStatus(
   stats: MuscleGroupStats,
-  now: number,
+  peakVolumePr: number,
 ): MuscleStatus {
-  // 1. Overload -> 'epuise' overrides everything
-  if (stats.volumeLast24h >= overloadThreshold(stats.muscleId)) {
-    return 'epuise';
-  }
+  // Fallback for users with no PR yet — use the legacy absolute threshold
+  // (kg per muscle size bucket) so fresh profiles still behave sanely.
+  const peak =
+    peakVolumePr > 0 ? peakVolumePr : overloadThreshold(stats.muscleId);
 
-  // 2. If currently 'epuise' and the status is still locked in, keep it
-  if (stats.status === 'epuise' && stats.statusUntil && stats.statusUntil > now) {
-    return 'epuise';
-  }
+  if (peak <= 0 || stats.volumeLast24h <= 0) return 'frais';
 
-  // 3. Time-based decay of freshness
-  if (!stats.lastTrainedAt) return 'frais';
-  const hoursSince = (now - stats.lastTrainedAt) / MS_PER_HOUR;
-
-  if (hoursSince < STATUS_HOURS.EPUISE_TO_FATIGUE)  return 'fatigue';
-  if (hoursSince < STATUS_HOURS.FATIGUE_TO_ACTIF)   return 'actif';
-  // hoursSince < STATUS_HOURS.ACTIF_TO_FRAIS -> 'frais' after threshold
-  if (hoursSince < STATUS_HOURS.ACTIF_TO_FRAIS)     return 'actif';
+  const ratio = stats.volumeLast24h / peak;
+  if (ratio >= STATUS_VOLUME_RATIO.FATIGUE_MAX) return 'epuise';
+  if (ratio >= STATUS_VOLUME_RATIO.ACTIF_MAX)   return 'fatigue';
+  if (ratio >= STATUS_VOLUME_RATIO.FRAIS_MAX)   return 'actif';
   return 'frais';
 }
 
-/** Recompute status for every muscle. */
+/**
+ * Recompute status for every muscle.
+ * Reads the profile's personalRecords to get the `peakVolumePr` anchor.
+ */
 export function refreshAllMuscleStatuses(
   profile: UserProfile,
   now: number,
 ): UserProfile {
+  // Derive the global peak volume PR across all tracked exercises.
+  let peakVolumePr = 0;
+  for (const pr of Object.values(profile.personalRecords)) {
+    if (pr.bestVolume > peakVolumePr) peakVolumePr = pr.bestVolume;
+  }
+
   const nextStats = { ...profile.muscleStats };
   for (const id of ALL_MUSCLE_IDS) {
     const decayed = decayRollingVolumes(nextStats[id], now);
-    const newStatus = computeMuscleStatus(decayed, now);
-
-    // When entering 'epuise', lock until tomorrow.
-    const statusUntil =
-      newStatus === 'epuise' && decayed.status !== 'epuise'
-        ? now + MS_PER_DAY
-        : newStatus === 'epuise'
-        ? decayed.statusUntil
-        : null;
-
-    nextStats[id] = { ...decayed, status: newStatus, statusUntil };
+    const newStatus = computeMuscleStatus(decayed, peakVolumePr);
+    nextStats[id] = { ...decayed, status: newStatus, statusUntil: null };
   }
   return { ...profile, muscleStats: nextStats };
 }

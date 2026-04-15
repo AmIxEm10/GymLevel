@@ -57,6 +57,7 @@ import {
   BUILT_IN_TEMPLATES_BY_ID,
 } from '@/data/workoutTemplates';
 
+import dbHelper from '@/services/database/dbHelper';
 import {
   applySetBreakdownToProfile,
   applyXpToLevel,
@@ -272,6 +273,10 @@ export const useAppStore = create<AppState>()(
       initializeApp: () => {
         const now = Date.now();
         const { profile: currentProfile } = get();
+
+        // Fire-and-forget: initialise the local SQLite schema on native
+        // platforms. Web / unsupported platforms resolve to a no-op.
+        dbHelper.init().catch(() => {});
 
         // Daily quests do NOT depend on bodyweight — refresh them first so
         // the Quêtes tab is populated even before onboarding completes.
@@ -637,6 +642,10 @@ export const useAppStore = create<AppState>()(
         if (!activeSession) return;
 
         const finalized = svcFinalizeSession(activeSession, now);
+
+        // Persist to SQLite (no-op on web / unsupported) — fire-and-forget
+        // so the UI doesn't wait on disk I/O.
+        dbHelper.saveSession(finalized).catch(() => {});
 
         // Streak handling
         const lastAt = profile.lastWorkoutAt;

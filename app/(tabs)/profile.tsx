@@ -2,13 +2,10 @@ import {
   Activity,
   Check,
   Edit2,
-  Gem,
-  HardHat,
   HeartPulse,
   Ruler,
   Scale,
   Shield,
-  Shirt,
   Sparkles,
   Sword,
   Swords,
@@ -26,66 +23,20 @@ import { GradientBar } from '@/components/GradientBar';
 import { GrowthChart } from '@/components/GrowthChart';
 import { RANK_INFO, RankEmblem, computeRank } from '@/components/RankEmblem';
 import {
-  selectEquipped,
   selectPlayerClass,
   selectProfile,
   useAppStore,
 } from '@/store/useAppStore';
-import type {
-  EquipmentItem,
-  EquipmentRarity,
-  EquipmentSlot,
-  PlayerClassId,
-} from '@/types';
+import type { PlayerClassId } from '@/types';
 
 // ---------------------------------------------------------------------------
-// Display maps
+// Class icon mapping (3 classes: guerrier / assassin / tank)
 // ---------------------------------------------------------------------------
 
 const PLAYER_CLASS_ICON: Record<PlayerClassId, LucideIcon> = {
   guerrier: Swords,
   assassin: Sword,
   tank: Shield,
-};
-
-const SLOT_META: Record<
-  EquipmentSlot,
-  { label: string; Icon: LucideIcon }
-> = {
-  head:      { label: 'Tête',       Icon: HardHat },
-  body:      { label: 'Corps',      Icon: Shirt },
-  weapon:    { label: 'Arme',       Icon: Sword },
-  accessory: { label: 'Accessoire', Icon: Gem },
-};
-
-const RARITY_META: Record<
-  EquipmentRarity,
-  { border: string; bg: string; label: string; text: string }
-> = {
-  common: {
-    border: 'border-slate-400/60',
-    bg: 'bg-slate-500/10',
-    label: 'Commun',
-    text: 'text-slate-300',
-  },
-  rare: {
-    border: 'border-blue-500/70',
-    bg: 'bg-blue-500/10',
-    label: 'Rare',
-    text: 'text-blue-300',
-  },
-  epic: {
-    border: 'border-purple-500/70',
-    bg: 'bg-purple-500/10',
-    label: 'Épique',
-    text: 'text-purple-300',
-  },
-  legendary: {
-    border: 'border-amber-400/80',
-    bg: 'bg-amber-500/10',
-    label: 'Légendaire',
-    text: 'text-amber-300',
-  },
 };
 
 // ---------------------------------------------------------------------------
@@ -95,7 +46,6 @@ const RARITY_META: Record<
 export default function ProfileScreen() {
   const profile = useAppStore(selectProfile);
   const playerClass = useAppStore(selectPlayerClass);
-  const equipped = useAppStore(selectEquipped);
   const history = useAppStore(s => s.workoutHistory);
   const updateNickname = useAppStore(s => s.updateNickname);
 
@@ -326,18 +276,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ================================================== EQUIPMENT */}
-        <View className="px-5 pt-8">
-          <SectionTitle title="Équipement Actif" subtitle="Loot équipé" />
-          <View className="mt-3 flex-row flex-wrap">
-            {(Object.keys(SLOT_META) as EquipmentSlot[]).map(slot => (
-              <View key={slot} className="w-1/2 p-1.5">
-                <EquipmentSlotCard slot={slot} item={equipped[slot]} />
-              </View>
-            ))}
-          </View>
-        </View>
-
         {/* ================================================== GROWTH CHART */}
         <View className="px-5 pb-8 pt-8">
           <SectionTitle
@@ -378,68 +316,6 @@ function SectionTitle({
       {subtitle ? (
         <Text className="text-[10px] uppercase tracking-widest text-slate-500">
           {subtitle}
-        </Text>
-      ) : null}
-    </View>
-  );
-}
-
-function EquipmentSlotCard({
-  slot,
-  item,
-}: {
-  slot: EquipmentSlot;
-  item: EquipmentItem | null;
-}) {
-  const meta = SLOT_META[slot];
-  const Icon = meta.Icon;
-
-  if (!item) {
-    return (
-      <View
-        className="items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-white/[0.02] p-4"
-        style={{ aspectRatio: 1.25 }}
-      >
-        <Icon size={26} color="#334155" strokeWidth={1.75} />
-        <Text className="mt-2 text-[10px] uppercase tracking-widest text-slate-600">
-          {meta.label}
-        </Text>
-        <Text className="mt-0.5 text-[10px] text-slate-700">Vide</Text>
-      </View>
-    );
-  }
-
-  const rarity = RARITY_META[item.rarity];
-  const firstBonus = item.bonuses[0];
-
-  return (
-    <View
-      className={`rounded-2xl border ${rarity.border} ${rarity.bg} p-3`}
-      style={{ aspectRatio: 1.25 }}
-    >
-      <View className="flex-row items-center justify-between">
-        <Icon size={18} color="#E2E8F0" strokeWidth={1.75} />
-        <Text className={`text-[9px] uppercase tracking-widest ${rarity.text}`}>
-          {rarity.label}
-        </Text>
-      </View>
-
-      <Text className="mt-2 text-[10px] uppercase tracking-widest text-slate-500">
-        {meta.label}
-      </Text>
-      <Text
-        className="mt-0.5 text-sm font-bold text-slate-100"
-        numberOfLines={1}
-      >
-        {item.name}
-      </Text>
-
-      {firstBonus ? (
-        <Text
-          className="mt-auto text-[10px] leading-snug text-slate-400"
-          numberOfLines={2}
-        >
-          {firstBonus.description}
         </Text>
       ) : null}
     </View>
