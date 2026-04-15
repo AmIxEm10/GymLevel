@@ -1,0 +1,512 @@
+import type { Exercise } from '@/types';
+
+/**
+ * Built-in exercise library.
+ * The `muscleInvolvement.weight` values are what route XP to muscles.
+ * They should sum to ~1 per exercise (primary takes the lion's share).
+ */
+export const EXERCISES: readonly Exercise[] = [
+  // =========================================================================
+  // PUSH — Chest / Shoulders / Triceps
+  // =========================================================================
+  {
+    id: 'bench_press_barbell',
+    name: 'Développé couché (barre)',
+    nameEn: 'Barbell Bench Press',
+    category: 'push',
+    movement: 'compound',
+    equipment: 'barbell',
+    isBodyweight: false,
+    xpMultiplier: 1.1,
+    muscleInvolvement: [
+      { muscleId: 'pectoraux',           weight: 0.60, role: 'primary' },
+      { muscleId: 'triceps',             weight: 0.25, role: 'secondary' },
+      { muscleId: 'deltoides_anterieur', weight: 0.15, role: 'secondary' },
+    ],
+    primaryMuscles: ['pectoraux'],
+    secondaryMuscles: ['triceps', 'deltoides_anterieur'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'incline_db_press',
+    name: 'Développé incliné haltères',
+    nameEn: 'Incline Dumbbell Press',
+    category: 'push', movement: 'compound', equipment: 'dumbbell',
+    isBodyweight: false, xpMultiplier: 1.05,
+    muscleInvolvement: [
+      { muscleId: 'pectoraux',           weight: 0.55, role: 'primary' },
+      { muscleId: 'deltoides_anterieur', weight: 0.25, role: 'secondary' },
+      { muscleId: 'triceps',             weight: 0.20, role: 'secondary' },
+    ],
+    primaryMuscles: ['pectoraux'],
+    secondaryMuscles: ['deltoides_anterieur', 'triceps'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'push_up',
+    name: 'Pompes',
+    nameEn: 'Push-up',
+    category: 'push', movement: 'compound', equipment: 'bodyweight',
+    isBodyweight: true, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'pectoraux',           weight: 0.55, role: 'primary' },
+      { muscleId: 'triceps',             weight: 0.25, role: 'secondary' },
+      { muscleId: 'deltoides_anterieur', weight: 0.15, role: 'secondary' },
+      { muscleId: 'abdominaux',          weight: 0.05, role: 'stabilizer' },
+    ],
+    primaryMuscles: ['pectoraux'],
+    secondaryMuscles: ['triceps', 'deltoides_anterieur'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'overhead_press',
+    name: 'Développé militaire',
+    nameEn: 'Overhead Press',
+    category: 'push', movement: 'compound', equipment: 'barbell',
+    isBodyweight: false, xpMultiplier: 1.1,
+    muscleInvolvement: [
+      { muscleId: 'deltoides_anterieur', weight: 0.45, role: 'primary' },
+      { muscleId: 'deltoides_lateral',   weight: 0.20, role: 'primary' },
+      { muscleId: 'triceps',             weight: 0.25, role: 'secondary' },
+      { muscleId: 'trapezes',            weight: 0.10, role: 'stabilizer' },
+    ],
+    primaryMuscles: ['deltoides_anterieur', 'deltoides_lateral'],
+    secondaryMuscles: ['triceps', 'trapezes'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'lateral_raise',
+    name: 'Élévations latérales',
+    nameEn: 'Lateral Raises',
+    category: 'push', movement: 'isolation', equipment: 'dumbbell',
+    isBodyweight: false, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'deltoides_lateral', weight: 0.85, role: 'primary' },
+      { muscleId: 'trapezes',          weight: 0.15, role: 'stabilizer' },
+    ],
+    primaryMuscles: ['deltoides_lateral'],
+    secondaryMuscles: ['trapezes'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'triceps_pushdown',
+    name: 'Extensions triceps poulie',
+    nameEn: 'Triceps Pushdown',
+    category: 'push', movement: 'isolation', equipment: 'cable',
+    isBodyweight: false, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'triceps', weight: 1.0, role: 'primary' },
+    ],
+    primaryMuscles: ['triceps'], secondaryMuscles: [],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'dips',
+    name: 'Dips',
+    nameEn: 'Dips',
+    category: 'push', movement: 'compound', equipment: 'bodyweight',
+    isBodyweight: true, xpMultiplier: 1.1,
+    muscleInvolvement: [
+      { muscleId: 'triceps',             weight: 0.45, role: 'primary' },
+      { muscleId: 'pectoraux',           weight: 0.40, role: 'primary' },
+      { muscleId: 'deltoides_anterieur', weight: 0.15, role: 'secondary' },
+    ],
+    primaryMuscles: ['triceps', 'pectoraux'],
+    secondaryMuscles: ['deltoides_anterieur'],
+    isCustom: false, createdAt: 0,
+  },
+
+  // =========================================================================
+  // PULL — Back / Biceps / Rear delts
+  // =========================================================================
+  {
+    id: 'pull_up',
+    name: 'Tractions',
+    nameEn: 'Pull-up',
+    category: 'pull', movement: 'compound', equipment: 'bodyweight',
+    isBodyweight: true, xpMultiplier: 1.15,
+    muscleInvolvement: [
+      { muscleId: 'dorsaux',               weight: 0.55, role: 'primary' },
+      { muscleId: 'biceps',                weight: 0.20, role: 'secondary' },
+      { muscleId: 'trapezes',              weight: 0.15, role: 'secondary' },
+      { muscleId: 'deltoides_posterieur',  weight: 0.10, role: 'secondary' },
+    ],
+    primaryMuscles: ['dorsaux'],
+    secondaryMuscles: ['biceps', 'trapezes', 'deltoides_posterieur'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'barbell_row',
+    name: 'Rowing barre',
+    nameEn: 'Barbell Row',
+    category: 'pull', movement: 'compound', equipment: 'barbell',
+    isBodyweight: false, xpMultiplier: 1.1,
+    muscleInvolvement: [
+      { muscleId: 'dorsaux',               weight: 0.45, role: 'primary' },
+      { muscleId: 'trapezes',              weight: 0.20, role: 'primary' },
+      { muscleId: 'deltoides_posterieur',  weight: 0.15, role: 'secondary' },
+      { muscleId: 'biceps',                weight: 0.10, role: 'secondary' },
+      { muscleId: 'lombaires',             weight: 0.10, role: 'stabilizer' },
+    ],
+    primaryMuscles: ['dorsaux', 'trapezes'],
+    secondaryMuscles: ['deltoides_posterieur', 'biceps', 'lombaires'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'lat_pulldown',
+    name: 'Tirage vertical poulie',
+    nameEn: 'Lat Pulldown',
+    category: 'pull', movement: 'compound', equipment: 'cable',
+    isBodyweight: false, xpMultiplier: 1.05,
+    muscleInvolvement: [
+      { muscleId: 'dorsaux', weight: 0.65, role: 'primary' },
+      { muscleId: 'biceps',  weight: 0.20, role: 'secondary' },
+      { muscleId: 'trapezes',weight: 0.15, role: 'secondary' },
+    ],
+    primaryMuscles: ['dorsaux'],
+    secondaryMuscles: ['biceps', 'trapezes'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'seated_row',
+    name: 'Rowing assis poulie',
+    nameEn: 'Seated Cable Row',
+    category: 'pull', movement: 'compound', equipment: 'cable',
+    isBodyweight: false, xpMultiplier: 1.05,
+    muscleInvolvement: [
+      { muscleId: 'dorsaux',              weight: 0.40, role: 'primary' },
+      { muscleId: 'trapezes',             weight: 0.25, role: 'primary' },
+      { muscleId: 'deltoides_posterieur', weight: 0.20, role: 'secondary' },
+      { muscleId: 'biceps',               weight: 0.15, role: 'secondary' },
+    ],
+    primaryMuscles: ['dorsaux', 'trapezes'],
+    secondaryMuscles: ['deltoides_posterieur', 'biceps'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'face_pull',
+    name: 'Face pull',
+    nameEn: 'Face Pull',
+    category: 'pull', movement: 'isolation', equipment: 'cable',
+    isBodyweight: false, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'deltoides_posterieur', weight: 0.60, role: 'primary' },
+      { muscleId: 'trapezes',             weight: 0.30, role: 'secondary' },
+      { muscleId: 'biceps',               weight: 0.10, role: 'stabilizer' },
+    ],
+    primaryMuscles: ['deltoides_posterieur'],
+    secondaryMuscles: ['trapezes'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'biceps_curl_db',
+    name: 'Curl haltères',
+    nameEn: 'Dumbbell Biceps Curl',
+    category: 'pull', movement: 'isolation', equipment: 'dumbbell',
+    isBodyweight: false, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'biceps',     weight: 0.85, role: 'primary' },
+      { muscleId: 'avant_bras', weight: 0.15, role: 'secondary' },
+    ],
+    primaryMuscles: ['biceps'],
+    secondaryMuscles: ['avant_bras'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'hammer_curl',
+    name: 'Curl marteau',
+    nameEn: 'Hammer Curl',
+    category: 'pull', movement: 'isolation', equipment: 'dumbbell',
+    isBodyweight: false, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'biceps',     weight: 0.65, role: 'primary' },
+      { muscleId: 'avant_bras', weight: 0.35, role: 'primary' },
+    ],
+    primaryMuscles: ['biceps', 'avant_bras'],
+    secondaryMuscles: [],
+    isCustom: false, createdAt: 0,
+  },
+
+  // =========================================================================
+  // LEGS
+  // =========================================================================
+  {
+    id: 'back_squat',
+    name: 'Squat barre',
+    nameEn: 'Back Squat',
+    category: 'legs', movement: 'compound', equipment: 'barbell',
+    isBodyweight: false, xpMultiplier: 1.2,
+    muscleInvolvement: [
+      { muscleId: 'quadriceps',      weight: 0.45, role: 'primary' },
+      { muscleId: 'fessiers',        weight: 0.25, role: 'primary' },
+      { muscleId: 'ischio_jambiers', weight: 0.15, role: 'secondary' },
+      { muscleId: 'lombaires',       weight: 0.10, role: 'stabilizer' },
+      { muscleId: 'abdominaux',      weight: 0.05, role: 'stabilizer' },
+    ],
+    primaryMuscles: ['quadriceps', 'fessiers'],
+    secondaryMuscles: ['ischio_jambiers', 'lombaires', 'abdominaux'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'deadlift',
+    name: 'Soulevé de terre',
+    nameEn: 'Deadlift',
+    category: 'pull', movement: 'compound', equipment: 'barbell',
+    isBodyweight: false, xpMultiplier: 1.25,
+    muscleInvolvement: [
+      { muscleId: 'ischio_jambiers', weight: 0.30, role: 'primary' },
+      { muscleId: 'fessiers',        weight: 0.25, role: 'primary' },
+      { muscleId: 'lombaires',       weight: 0.15, role: 'primary' },
+      { muscleId: 'dorsaux',         weight: 0.10, role: 'secondary' },
+      { muscleId: 'trapezes',        weight: 0.10, role: 'secondary' },
+      { muscleId: 'quadriceps',      weight: 0.10, role: 'secondary' },
+    ],
+    primaryMuscles: ['ischio_jambiers', 'fessiers', 'lombaires'],
+    secondaryMuscles: ['dorsaux', 'trapezes', 'quadriceps'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'romanian_deadlift',
+    name: 'Soulevé de terre roumain',
+    nameEn: 'Romanian Deadlift',
+    category: 'legs', movement: 'compound', equipment: 'barbell',
+    isBodyweight: false, xpMultiplier: 1.15,
+    muscleInvolvement: [
+      { muscleId: 'ischio_jambiers', weight: 0.50, role: 'primary' },
+      { muscleId: 'fessiers',        weight: 0.30, role: 'primary' },
+      { muscleId: 'lombaires',       weight: 0.15, role: 'secondary' },
+      { muscleId: 'dorsaux',         weight: 0.05, role: 'stabilizer' },
+    ],
+    primaryMuscles: ['ischio_jambiers', 'fessiers'],
+    secondaryMuscles: ['lombaires'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'leg_press',
+    name: 'Presse à cuisses',
+    nameEn: 'Leg Press',
+    category: 'legs', movement: 'compound', equipment: 'machine',
+    isBodyweight: false, xpMultiplier: 1.05,
+    muscleInvolvement: [
+      { muscleId: 'quadriceps',      weight: 0.55, role: 'primary' },
+      { muscleId: 'fessiers',        weight: 0.25, role: 'primary' },
+      { muscleId: 'ischio_jambiers', weight: 0.15, role: 'secondary' },
+      { muscleId: 'adducteurs',      weight: 0.05, role: 'secondary' },
+    ],
+    primaryMuscles: ['quadriceps', 'fessiers'],
+    secondaryMuscles: ['ischio_jambiers', 'adducteurs'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'leg_extension',
+    name: 'Leg extension',
+    nameEn: 'Leg Extension',
+    category: 'legs', movement: 'isolation', equipment: 'machine',
+    isBodyweight: false, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'quadriceps', weight: 1.0, role: 'primary' },
+    ],
+    primaryMuscles: ['quadriceps'], secondaryMuscles: [],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'leg_curl',
+    name: 'Leg curl',
+    nameEn: 'Leg Curl',
+    category: 'legs', movement: 'isolation', equipment: 'machine',
+    isBodyweight: false, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'ischio_jambiers', weight: 1.0, role: 'primary' },
+    ],
+    primaryMuscles: ['ischio_jambiers'], secondaryMuscles: [],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'hip_thrust',
+    name: 'Hip Thrust',
+    nameEn: 'Hip Thrust',
+    category: 'legs', movement: 'compound', equipment: 'barbell',
+    isBodyweight: false, xpMultiplier: 1.1,
+    muscleInvolvement: [
+      { muscleId: 'fessiers',        weight: 0.70, role: 'primary' },
+      { muscleId: 'ischio_jambiers', weight: 0.20, role: 'secondary' },
+      { muscleId: 'quadriceps',      weight: 0.10, role: 'secondary' },
+    ],
+    primaryMuscles: ['fessiers'],
+    secondaryMuscles: ['ischio_jambiers', 'quadriceps'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'calf_raise',
+    name: 'Mollets debout',
+    nameEn: 'Standing Calf Raise',
+    category: 'legs', movement: 'isolation', equipment: 'machine',
+    isBodyweight: false, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'mollets', weight: 1.0, role: 'primary' },
+    ],
+    primaryMuscles: ['mollets'], secondaryMuscles: [],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'adductor_machine',
+    name: 'Machine adducteurs',
+    nameEn: 'Hip Adduction',
+    category: 'legs', movement: 'isolation', equipment: 'machine',
+    isBodyweight: false, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'adducteurs', weight: 1.0, role: 'primary' },
+    ],
+    primaryMuscles: ['adducteurs'], secondaryMuscles: [],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'walking_lunge',
+    name: 'Fentes marchées',
+    nameEn: 'Walking Lunge',
+    category: 'legs', movement: 'compound', equipment: 'dumbbell',
+    isBodyweight: false, xpMultiplier: 1.1,
+    muscleInvolvement: [
+      { muscleId: 'quadriceps',      weight: 0.40, role: 'primary' },
+      { muscleId: 'fessiers',        weight: 0.35, role: 'primary' },
+      { muscleId: 'ischio_jambiers', weight: 0.20, role: 'secondary' },
+      { muscleId: 'mollets',         weight: 0.05, role: 'stabilizer' },
+    ],
+    primaryMuscles: ['quadriceps', 'fessiers'],
+    secondaryMuscles: ['ischio_jambiers'],
+    isCustom: false, createdAt: 0,
+  },
+
+  // =========================================================================
+  // CORE
+  // =========================================================================
+  {
+    id: 'plank',
+    name: 'Planche',
+    nameEn: 'Plank',
+    category: 'core', movement: 'isolation', equipment: 'bodyweight',
+    isBodyweight: true, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'abdominaux', weight: 0.70, role: 'primary' },
+      { muscleId: 'obliques',   weight: 0.20, role: 'secondary' },
+      { muscleId: 'lombaires',  weight: 0.10, role: 'stabilizer' },
+    ],
+    primaryMuscles: ['abdominaux'],
+    secondaryMuscles: ['obliques', 'lombaires'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'hanging_leg_raise',
+    name: 'Relevé de jambes suspendu',
+    nameEn: 'Hanging Leg Raise',
+    category: 'core', movement: 'isolation', equipment: 'bodyweight',
+    isBodyweight: true, xpMultiplier: 1.1,
+    muscleInvolvement: [
+      { muscleId: 'abdominaux', weight: 0.75, role: 'primary' },
+      { muscleId: 'obliques',   weight: 0.15, role: 'secondary' },
+      { muscleId: 'avant_bras', weight: 0.10, role: 'stabilizer' },
+    ],
+    primaryMuscles: ['abdominaux'],
+    secondaryMuscles: ['obliques'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'russian_twist',
+    name: 'Russian twist',
+    nameEn: 'Russian Twist',
+    category: 'core', movement: 'isolation', equipment: 'bodyweight',
+    isBodyweight: true, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'obliques',   weight: 0.70, role: 'primary' },
+      { muscleId: 'abdominaux', weight: 0.30, role: 'secondary' },
+    ],
+    primaryMuscles: ['obliques'],
+    secondaryMuscles: ['abdominaux'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'cable_crunch',
+    name: 'Crunch poulie',
+    nameEn: 'Cable Crunch',
+    category: 'core', movement: 'isolation', equipment: 'cable',
+    isBodyweight: false, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'abdominaux', weight: 0.85, role: 'primary' },
+      { muscleId: 'obliques',   weight: 0.15, role: 'secondary' },
+    ],
+    primaryMuscles: ['abdominaux'],
+    secondaryMuscles: ['obliques'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'back_extension',
+    name: 'Extension lombaire',
+    nameEn: 'Back Extension',
+    category: 'core', movement: 'isolation', equipment: 'machine',
+    isBodyweight: true, xpMultiplier: 1.0,
+    muscleInvolvement: [
+      { muscleId: 'lombaires',       weight: 0.70, role: 'primary' },
+      { muscleId: 'fessiers',        weight: 0.20, role: 'secondary' },
+      { muscleId: 'ischio_jambiers', weight: 0.10, role: 'secondary' },
+    ],
+    primaryMuscles: ['lombaires'],
+    secondaryMuscles: ['fessiers', 'ischio_jambiers'],
+    isCustom: false, createdAt: 0,
+  },
+
+  // =========================================================================
+  // HIIT / Conditioning (volume computed from duration × intensity)
+  // =========================================================================
+  {
+    id: 'burpee',
+    name: 'Burpees',
+    nameEn: 'Burpees',
+    category: 'hiit', movement: 'compound', equipment: 'bodyweight',
+    isBodyweight: true, xpMultiplier: 1.2,
+    muscleInvolvement: [
+      { muscleId: 'pectoraux',           weight: 0.20, role: 'secondary' },
+      { muscleId: 'quadriceps',          weight: 0.25, role: 'primary' },
+      { muscleId: 'fessiers',            weight: 0.15, role: 'secondary' },
+      { muscleId: 'abdominaux',          weight: 0.15, role: 'secondary' },
+      { muscleId: 'deltoides_anterieur', weight: 0.10, role: 'secondary' },
+      { muscleId: 'triceps',             weight: 0.15, role: 'secondary' },
+    ],
+    primaryMuscles: ['quadriceps'],
+    secondaryMuscles: ['pectoraux', 'fessiers', 'abdominaux', 'deltoides_anterieur', 'triceps'],
+    isCustom: false, createdAt: 0,
+  },
+  {
+    id: 'mountain_climber',
+    name: 'Mountain climbers',
+    nameEn: 'Mountain Climbers',
+    category: 'hiit', movement: 'compound', equipment: 'bodyweight',
+    isBodyweight: true, xpMultiplier: 1.1,
+    muscleInvolvement: [
+      { muscleId: 'abdominaux',          weight: 0.40, role: 'primary' },
+      { muscleId: 'obliques',            weight: 0.20, role: 'secondary' },
+      { muscleId: 'quadriceps',          weight: 0.20, role: 'secondary' },
+      { muscleId: 'deltoides_anterieur', weight: 0.10, role: 'stabilizer' },
+      { muscleId: 'pectoraux',           weight: 0.10, role: 'stabilizer' },
+    ],
+    primaryMuscles: ['abdominaux'],
+    secondaryMuscles: ['obliques', 'quadriceps'],
+    isCustom: false, createdAt: 0,
+  },
+];
+
+/** Lookup map. */
+export const EXERCISES_BY_ID: Record<string, Exercise> = EXERCISES.reduce(
+  (acc, ex) => {
+    acc[ex.id] = ex;
+    return acc;
+  },
+  {} as Record<string, Exercise>,
+);
+
+/** Simple runtime sanity check — useful in dev to validate seed data. */
+export function validateExerciseInvolvements(): Array<{ id: string; sum: number }> {
+  return EXERCISES.map(ex => ({
+    id: ex.id,
+    sum: Number(ex.muscleInvolvement.reduce((s, mi) => s + mi.weight, 0).toFixed(3)),
+  })).filter(r => Math.abs(r.sum - 1.0) > 0.01);
+}
