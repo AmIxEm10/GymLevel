@@ -17,6 +17,8 @@ import type {
   MuscleGroupId,
   NewSetPayload,
   NewTemplatePayload,
+  PlayerClass,
+  PlayerClassId,
   Quest,
   UserPreferences,
   UserProfile,
@@ -24,10 +26,21 @@ import type {
   WorkoutTemplate,
 } from '@/types';
 
-import { BODYWEIGHT_DEFAULT_KG, STREAK_XP_BONUS_PER_DAY, STREAK_MAX_BONUS_DAYS } from '@/constants/gamification';
+import {
+  STREAK_MAX_BONUS_DAYS,
+  STREAK_XP_BONUS_PER_DAY,
+} from '@/constants/gamification';
 import { EXERCISES, EXERCISES_BY_ID } from '@/data/exercises';
 import { createInitialMuscleStatsRecord } from '@/data/muscleGroups';
-import { BUILT_IN_TEMPLATES, BUILT_IN_TEMPLATES_BY_ID } from '@/data/workoutTemplates';
+import {
+  PLAYER_CLASSES,
+  PLAYER_CLASSES_BY_ID,
+  getPlayerClass,
+} from '@/data/playerClasses';
+import {
+  BUILT_IN_TEMPLATES,
+  BUILT_IN_TEMPLATES_BY_ID,
+} from '@/data/workoutTemplates';
 
 import {
   applySetBreakdownToProfile,
@@ -59,11 +72,12 @@ import {
 } from '@/services/workoutService';
 
 // ---------------------------------------------------------------------------
-// Default profile factory
+// Default factories
 // ---------------------------------------------------------------------------
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   weightUnit: 'kg',
+  bodyweightKg: 70,          // editable via setBodyweight()
   defaultRestSeconds: 90,
   theme: 'dark',
   hapticFeedback: true,
@@ -74,17 +88,24 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 function createDefaultProfile(now: number): UserProfile {
   return {
     id: 'local_user',
-    username: 'Challenger',
+    username: 'Chasseur',
     createdAt: now,
+
+    playerClassId: 'novice',
+    playerClassChangedAt: null,
+
     totalXp: 0,
     level: 1,
     xpToNextLevel: 100,
+
     muscleStats: createInitialMuscleStatsRecord(),
+
     currentStreak: 0,
     longestStreak: 0,
     totalWorkouts: 0,
     totalVolumeLifetime: 0,
     lastWorkoutAt: null,
+
     preferences: DEFAULT_PREFERENCES,
   };
 }
@@ -92,6 +113,17 @@ function createDefaultProfile(now: number): UserProfile {
 // ---------------------------------------------------------------------------
 // State shape
 // ---------------------------------------------------------------------------
+
+type AppStoreSetPatch = {
+  reps: number;
+  weight: number;
+  rpe: number;
+  isWarmup: boolean;
+  isDropset: boolean;
+  isFailure: boolean;
+  notes: string;
+  restAfterSeconds: number;
+};
 
 interface AppState {
   // --- Persisted ----------------------------------------------------------
@@ -107,6 +139,7 @@ interface AppState {
   // --- Non persisted (runtime lookups) ------------------------------------
   builtInTemplates: WorkoutTemplate[];
   exercises: Exercise[];
+  playerClasses: PlayerClass[];
 
   // --- Lifecycle ----------------------------------------------------------
   initializeApp: () => void;
@@ -116,19 +149,25 @@ interface AppState {
   updatePreferences: (patch: Partial<UserPreferences>) => void;
   setBodyweight: (kg: number) => void;
 
+  // --- Player Class (RPG) -------------------------------------------------
+  setPlayerClass: (classId: PlayerClassId) => void;
+
   // --- Session / Tracker --------------------------------------------------
   startSessionFromTemplate: (templateId: string) => void;
   startBlankSession: (name?: string) => void;
   addExerciseToSession: (exerciseId: string) => void;
   removeExerciseFromSession: (workoutExerciseId: string) => void;
   addSet: (workoutExerciseId: string, payload: NewSetPayload) => void;
-  updateSet: (workoutExerciseId: string, setId: string, patch: Partial<AppStoreSetPatch>) => void;
+  updateSet: (
+    workoutExerciseId: string,
+    setId: string,
+    patch: Partial<AppStoreSetPatch>,
+  ) => void;
   removeSet: (workoutExerciseId: string, setId: string) => void;
   endSession: () => void;
   abandonSession: () => void;
 
   // --- Gamification -------------------------------------------------------
-  /** Manual XP adjustment (quests, bonuses, admin). */
   grantXp: (muscleId: MuscleGroupId | 'global', xp: number) => void;
 
   // --- Quests -------------------------------------------------------------
@@ -141,24 +180,9 @@ interface AppState {
   deleteCustomTemplate: (id: string) => void;
 }
 
-/** Limited subset of WorkoutSet fields allowed for updates via the store. */
-type AppStoreSetPatch = {
-  reps: number;
-  weight: number;
-  rpe: number;
-  isWarmup: boolean;
-  isDropset: boolean;
-  isFailure: boolean;
-  notes: string;
-  restAfterSeconds: number;
-};
-
 // ---------------------------------------------------------------------------
 // Store implementation
 // ---------------------------------------------------------------------------
-
-const bodyweightFromPrefs = (_p: UserPreferences): number => BODYWEIGHT_DEFAULT_KG;
-// TODO: wire a dedicated `bodyweightKg` preference once the user profile form lands.
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -174,6 +198,7 @@ export const useAppStore = create<AppState>()(
 
       builtInTemplates: [...BUILT_IN_TEMPLATES],
       exercises: [...EXERCISES],
+      playerClasses: [...PLAYER_CLASSES],
 
       // -------------------------------------------------------------------
       // Lifecycle
@@ -182,10 +207,8 @@ export const useAppStore = create<AppState>()(
         const now = Date.now();
         let profile = get().profile;
 
-        // 1) Refresh status on every boot
         profile = refreshAllMuscleStatuses(profile, now);
 
-        // 2) Deconditioning check (Mode Survie)
         let deconditioningResult: DeconditioningCheckResult | null = null;
         if (shouldRunDeconditioningCheck(profile, now)) {
           const out = runDeconditioningCheck(profile, now);
@@ -194,15 +217,12 @@ export const useAppStore = create<AppState>()(
         }
 
         set({ profile, lastDeconditioningResult: deconditioningResult });
-
-        // 3) Quests refresh
         get().refreshDailyQuests(false);
       },
 
       resetProfile: () => {
-        const now = Date.now();
         set({
-          profile: createDefaultProfile(now),
+          profile: createDefaultProfile(Date.now()),
           activeSession: null,
           workoutHistory: [],
           customTemplates: [],
@@ -218,12 +238,36 @@ export const useAppStore = create<AppState>()(
       // -------------------------------------------------------------------
       updatePreferences: patch => {
         set(s => ({
-          profile: { ...s.profile, preferences: { ...s.profile.preferences, ...patch } },
+          profile: {
+            ...s.profile,
+            preferences: { ...s.profile.preferences, ...patch },
+          },
         }));
       },
 
-      setBodyweight: (_kg: number) => {
-        // Placeholder — to be wired once we add `bodyweightKg` to UserProfile.
+      setBodyweight: kg => {
+        const clamped = Math.max(25, Math.min(300, Math.round(kg)));
+        set(s => ({
+          profile: {
+            ...s.profile,
+            preferences: { ...s.profile.preferences, bodyweightKg: clamped },
+          },
+        }));
+      },
+
+      // -------------------------------------------------------------------
+      // Player Class (RPG)
+      // -------------------------------------------------------------------
+      setPlayerClass: classId => {
+        if (!PLAYER_CLASSES_BY_ID[classId]) return;
+        const now = Date.now();
+        set(s => ({
+          profile: {
+            ...s.profile,
+            playerClassId: classId,
+            playerClassChangedAt: now,
+          },
+        }));
       },
 
       // -------------------------------------------------------------------
@@ -232,7 +276,7 @@ export const useAppStore = create<AppState>()(
       startSessionFromTemplate: templateId => {
         const now = Date.now();
         const { builtInTemplates, customTemplates, activeSession } = get();
-        if (activeSession) return; // must finish/abandon first
+        if (activeSession) return;
 
         const template =
           BUILT_IN_TEMPLATES_BY_ID[templateId] ??
@@ -251,13 +295,17 @@ export const useAppStore = create<AppState>()(
       addExerciseToSession: exerciseId => {
         const { activeSession } = get();
         if (!activeSession) return;
-        set({ activeSession: svcAddExercise(activeSession, exerciseId, Date.now()) });
+        set({
+          activeSession: svcAddExercise(activeSession, exerciseId, Date.now()),
+        });
       },
 
       removeExerciseFromSession: workoutExerciseId => {
         const { activeSession } = get();
         if (!activeSession) return;
-        set({ activeSession: svcRemoveExercise(activeSession, workoutExerciseId) });
+        set({
+          activeSession: svcRemoveExercise(activeSession, workoutExerciseId),
+        });
       },
 
       addSet: (workoutExerciseId, payload) => {
@@ -271,7 +319,7 @@ export const useAppStore = create<AppState>()(
         if (!added) return;
         const { session: sessionWithSet, newSet } = added;
 
-        // 2) Find the exercise to route XP
+        // 2) Resolve exercise + class for XP computation
         const we = sessionWithSet.exercises.find(e => e.id === workoutExerciseId)!;
         const exercise = EXERCISES_BY_ID[we.exerciseId];
         if (!exercise) {
@@ -279,11 +327,19 @@ export const useAppStore = create<AppState>()(
           return;
         }
 
-        // 3) Compute XP breakdown
-        const bodyweight = bodyweightFromPrefs(profile.preferences);
-        const breakdown = computeSetXp(newSet, exercise, profile.muscleStats, bodyweight);
+        const playerClass = getPlayerClass(profile.playerClassId);
+        const bodyweight = profile.preferences.bodyweightKg;
 
-        // 4) Apply to profile
+        // 3) Compute XP breakdown (class multiplier integrated here)
+        const breakdown = computeSetXp(
+          newSet,
+          exercise,
+          profile.muscleStats,
+          bodyweight,
+          playerClass,
+        );
+
+        // 4) Apply to profile (XP + level + per-muscle stats)
         const nextProfile = applySetBreakdownToProfile(profile, breakdown, now);
 
         // 5) Update session aggregates
@@ -313,32 +369,46 @@ export const useAppStore = create<AppState>()(
         for (const p of breakdown.perMuscle) {
           quests = applyQuestEvent(
             quests,
-            { type: 'muscle_xp', value: p.xpAfterStatus, filter: { muscleId: p.muscleId } },
+            {
+              type: 'muscle_xp',
+              value: p.xpAfterStatus,
+              filter: { muscleId: p.muscleId },
+            },
             now,
           );
           quests = applyQuestEvent(
             quests,
-            { type: 'muscle_volume', value: breakdown.volume * p.share, filter: { muscleId: p.muscleId } },
+            {
+              type: 'muscle_volume',
+              value: breakdown.volume * p.share,
+              filter: { muscleId: p.muscleId },
+            },
             now,
           );
         }
 
-        set({ activeSession: nextSession, profile: nextProfile, activeQuests: quests });
+        set({
+          activeSession: nextSession,
+          profile: nextProfile,
+          activeQuests: quests,
+        });
       },
 
       updateSet: (workoutExerciseId, setId, patch) => {
         const { activeSession } = get();
         if (!activeSession) return;
-        // NOTE: updating a set does NOT retroactively recompute XP. A real
-        // recompute requires replaying the session; we defer that to an
-        // explicit "re-sync" action to keep perf predictable.
-        set({ activeSession: svcUpdateSet(activeSession, workoutExerciseId, setId, patch) });
+        // Edits are not retroactively re-XP'd (MVP design decision).
+        set({
+          activeSession: svcUpdateSet(activeSession, workoutExerciseId, setId, patch),
+        });
       },
 
       removeSet: (workoutExerciseId, setId) => {
         const { activeSession } = get();
         if (!activeSession) return;
-        set({ activeSession: svcRemoveSet(activeSession, workoutExerciseId, setId) });
+        set({
+          activeSession: svcRemoveSet(activeSession, workoutExerciseId, setId),
+        });
       },
 
       endSession: () => {
@@ -366,7 +436,11 @@ export const useAppStore = create<AppState>()(
         const streakBonus =
           Math.min(nextStreak, STREAK_MAX_BONUS_DAYS) * STREAK_XP_BONUS_PER_DAY;
 
-        const globalAfter = applyXpToLevel(profile.level, profile.totalXp, streakBonus);
+        const globalAfter = applyXpToLevel(
+          profile.level,
+          profile.totalXp,
+          streakBonus,
+        );
 
         const nextProfile: UserProfile = {
           ...profile,
@@ -397,7 +471,7 @@ export const useAppStore = create<AppState>()(
           activeQuests: quests,
         });
 
-        // Re-evaluate muscle statuses after session end
+        // Re-evaluate statuses (maybe just pushed a muscle into 'epuise')
         set(s => ({ profile: refreshAllMuscleStatuses(s.profile, now) }));
       },
 
@@ -413,7 +487,7 @@ export const useAppStore = create<AppState>()(
       },
 
       // -------------------------------------------------------------------
-      // Gamification
+      // Gamification (manual XP grants — quests, bonuses, admin)
       // -------------------------------------------------------------------
       grantXp: (muscleId, xp) => {
         const now = Date.now();
@@ -461,12 +535,10 @@ export const useAppStore = create<AppState>()(
         const now = Date.now();
         const { activeQuests, completedQuests, lastQuestGenerationAt } = get();
 
-        // Expire first
         const expired = expireQuests(activeQuests, now);
         const stillActive = expired.filter(q => q.status === 'active');
         const movedToCompleted = expired.filter(q => q.status === 'completed');
 
-        // Do we need a new batch?
         const needsNew =
           force ||
           stillActive.length === 0 ||
@@ -494,7 +566,6 @@ export const useAppStore = create<AppState>()(
         const quest = activeQuests.find(q => q.id === questId);
         if (!quest || quest.status !== 'completed') return;
 
-        // Award global XP
         get().grantXp('global', quest.xpReward);
 
         set(s => ({
@@ -559,7 +630,7 @@ export const useAppStore = create<AppState>()(
 );
 
 // ---------------------------------------------------------------------------
-// Convenience selectors (tree-shaken when unused)
+// Convenience selectors
 // ---------------------------------------------------------------------------
 
 export const selectProfile = (s: AppState) => s.profile;
@@ -571,3 +642,7 @@ export const selectAllTemplates = (s: AppState) => [
   ...s.customTemplates,
 ];
 export const selectActiveQuests = (s: AppState) => s.activeQuests;
+export const selectPlayerClass = (s: AppState) =>
+  getPlayerClass(s.profile.playerClassId);
+export const selectBodyweightKg = (s: AppState) =>
+  s.profile.preferences.bodyweightKg;

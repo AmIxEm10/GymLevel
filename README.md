@@ -31,6 +31,7 @@ GymLevel/
 ├── data/
 │   ├── muscleGroups.ts         # Les 17 groupes musculaires
 │   ├── exercises.ts            # Librairie d'exercices + activation musculaire
+│   ├── playerClasses.ts        # Classes RPG (Novice / Tank / Assassin / Berserker / Ranger)
 │   └── workoutTemplates.ts     # Routines pré-construites
 ├── constants/
 │   └── gamification.ts         # Tous les nombres magiques du RPG
@@ -52,12 +53,20 @@ Voir `types/index.ts`. Entités principales :
 
 ## Mécaniques RPG implémentées
 
-1. **Formule XP** — `XP = volume × multiplicateurs` puis routage pondéré par muscle via `Exercise.muscleInvolvement`.
+1. **Formule XP** — `XP = volume × setModifier × exerciseMult × classMult` puis routage pondéré par muscle (× statusMod) via `Exercise.muscleInvolvement`.
 2. **Courbe de niveau** — `xpRequired(n) = 100 · n^1.5`, cap à 99.
-3. **Mode Survie (Déconditionnement)** — après 7j d'inactivité, perte de 2 % d'XP/jour (cap 50 %), vérifié au lancement avec cooldown de 12 h.
-4. **Statut Épuisé** — dépasser un seuil de volume 24h fait passer un muscle en `epuise` → XP × 0.5 jusqu'au lendemain.
-5. **Quêtes quotidiennes** — 3 quêtes générées par tranche de difficulté (easy/medium/hard), expirent à 04:00 locale.
-6. **Streaks** — bonus XP de 25/jour jusqu'à 14 jours consécutifs.
+3. **Classes RPG (Chasseur)** — 5 classes aux bonus data-driven :
+   - **Novice** — aucun bonus (par défaut).
+   - **Tank** 🛡️ — +30 % sur composés lourds (≤5 reps, ≥1× BW), +10 % sur tout composé.
+   - **Assassin** 🗡️ — +35 % sur exercices au poids du corps, +15 % sur séries 20+ reps.
+   - **Berserker** 🔥 — +30 % sur isolations en hypertrophie (8-15 reps).
+   - **Ranger** 🏹 — +30 % HIIT, +20 % cardio, +15 % endurance (25+ reps).
+   Les bonus d'une classe stackent multiplicativement lorsqu'ils matchent tous.
+4. **Mode Survie (Déconditionnement)** — après 7j d'inactivité, perte de 2 % d'XP/jour (cap 50 %), vérifié au lancement avec cooldown de 12 h.
+5. **Statut Épuisé** — dépasser un seuil de volume 24h fait passer un muscle en `epuise` → XP × 0.5 jusqu'au lendemain.
+6. **Quêtes quotidiennes** — 3 quêtes générées par tranche de difficulté (easy/medium/hard), expirent à 04:00 locale.
+7. **Streaks** — bonus XP de 25/jour jusqu'à 14 jours consécutifs.
+8. **Bodyweight personnalisé** — `UserPreferences.bodyweightKg` — utilisé comme poids effectif pour les exercices au poids du corps et comme référence du ratio Tank.
 
 ## Prochaine étape
 

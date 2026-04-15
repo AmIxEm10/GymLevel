@@ -45,12 +45,10 @@ export type MuscleStatus =
 
 export interface MuscleGroup {
   id: MuscleGroupId;
-  name: string;        // Display name (FR)
+  name: string;
   nameEn: string;
   bodyPart: BodyPart;
-  /** Visual cue — used by the body map UI later. */
   colorHex: string;
-  /** Relative recovery capacity (hours). Smaller muscles recover faster. */
   baseRecoveryHours: number;
 }
 
@@ -60,17 +58,15 @@ export interface MuscleGroupStats {
   xp: number;
   level: number;
   xpToNextLevel: number;
-  totalVolumeLifetime: number;   // kg cumulated (all time)
-  lastTrainedAt: number | null;  // epoch ms
+  totalVolumeLifetime: number;
+  lastTrainedAt: number | null;
   status: MuscleStatus;
-  statusUntil: number | null;    // epoch ms — when status should auto-re-evaluate
+  statusUntil: number | null;
 
-  // Rolling windows used by recovery & quests services
   volumeLast24h: number;
   volumeLast7d: number;
   sessionsLast7d: number;
 
-  // Deconditioning tracking
   lastDeconditioningAppliedAt: number | null;
 }
 
@@ -99,15 +95,9 @@ export type ExerciseCategory =
 
 export type Movement = 'compound' | 'isolation';
 
-/**
- * Per-exercise muscle activation map.
- * `weight` ∈ [0..1] — share of the volume that will be routed
- * to that muscle's XP bar. Sum of weights SHOULD be ≈ 1.0
- * (enforced at seed time, not runtime, for performance).
- */
 export interface MuscleInvolvement {
   muscleId: MuscleGroupId;
-  weight: number;
+  weight: number;         // 0..1 — share of XP routed to this muscle
   role: 'primary' | 'secondary' | 'stabilizer';
 }
 
@@ -120,21 +110,15 @@ export interface Exercise {
   equipment: Equipment;
   isBodyweight: boolean;
 
-  /** Granular activation — single source of truth for XP routing. */
   muscleInvolvement: MuscleInvolvement[];
-
-  /** Convenience flattened fields (derived from muscleInvolvement at seed time). */
   primaryMuscles: MuscleGroupId[];
   secondaryMuscles: MuscleGroupId[];
 
-  /** Compound lifts give a small XP bonus to reward effort. */
-  xpMultiplier: number; // default 1.0
-
+  xpMultiplier: number;   // default 1.0
   instructions?: string;
   tips?: string;
   videoUrl?: string;
 
-  /** User-created exercises have this flag set. */
   isCustom: boolean;
   createdAt: number;
 }
@@ -148,8 +132,8 @@ export interface WorkoutSet {
   exerciseId: string;
   setNumber: number;
   reps: number;
-  weight: number;            // kg (normalized; display handles lbs conversion)
-  rpe?: number;              // 1..10 — rate of perceived exertion
+  weight: number;          // kg normalized
+  rpe?: number;            // 1..10
   isWarmup: boolean;
   isDropset: boolean;
   isFailure: boolean;
@@ -159,16 +143,14 @@ export interface WorkoutSet {
 }
 
 export interface WorkoutExercise {
-  id: string;                // unique within the session
+  id: string;
   exerciseId: string;
   order: number;
   sets: WorkoutSet[];
 
-  // Target guidance from the template (optional)
   targetSets?: number;
-  targetReps?: string;       // e.g. "8-12"
+  targetReps?: string;
   targetRestSeconds?: number;
-
   notes?: string;
 }
 
@@ -180,7 +162,7 @@ export type WorkoutStatus =
 
 export interface WorkoutSession {
   id: string;
-  templateId?: string;       // undefined when the user starts from scratch
+  templateId?: string;
   name: string;
   startedAt: number;
   endedAt?: number;
@@ -188,8 +170,7 @@ export interface WorkoutSession {
 
   exercises: WorkoutExercise[];
 
-  // Aggregated snapshots computed at session end (and live during tracking)
-  totalVolume: number;                                      // Σ reps × weight
+  totalVolume: number;
   totalXpGained: number;
   xpByMuscle: Partial<Record<MuscleGroupId, number>>;
 
@@ -221,7 +202,7 @@ export interface TemplateExercise {
   exerciseId: string;
   order: number;
   targetSets: number;
-  targetReps: string;        // "5", "8-12", "AMRAP", "30s"
+  targetReps: string;
   targetRestSeconds?: number;
   notes?: string;
 }
@@ -235,9 +216,7 @@ export interface WorkoutTemplate {
   estimatedDurationMinutes: number;
   exercises: TemplateExercise[];
 
-  /** Built-in templates cannot be deleted, only cloned. */
   isBuiltIn: boolean;
-  /** If this template is the product of a clone, keep lineage. */
   clonedFrom?: string;
 
   createdAt: number;
@@ -249,14 +228,14 @@ export interface WorkoutTemplate {
 // ===========================================================================
 
 export type QuestType =
-  | 'volume_total'           // Lift X kg during the day
-  | 'muscle_volume'          // Lift X kg on a given muscle
-  | 'exercises_category'     // Complete X exercises of category (push/pull/legs/core)
-  | 'exercise_specific'      // Complete X sets of a given exercise
-  | 'muscle_xp'              // Gain X XP on a given muscle
-  | 'workout_duration'       // Train at least X minutes
-  | 'streak_day'             // Train today (streak-keeper)
-  | 'set_count';             // Complete X working sets
+  | 'volume_total'
+  | 'muscle_volume'
+  | 'exercises_category'
+  | 'exercise_specific'
+  | 'muscle_xp'
+  | 'workout_duration'
+  | 'streak_day'
+  | 'set_count';
 
 export type QuestStatus =
   | 'active'
@@ -288,12 +267,76 @@ export interface Quest {
   status: QuestStatus;
 
   createdAt: number;
-  expiresAt: number;         // daily quests expire at midnight local
+  expiresAt: number;
   completedAt?: number;
 }
 
 // ===========================================================================
-// 6. USER PROFILE
+// 6. PLAYER CLASS SYSTEM (RPG)
+// ===========================================================================
+
+export type PlayerClassId =
+  | 'novice'       // Default — no passive bonus
+  | 'tank'         // Strength / heavy compound lifts
+  | 'assassin'     // Bodyweight / calisthenics
+  | 'berserker'    // Hypertrophy / isolation
+  | 'ranger';      // HIIT / endurance
+
+/**
+ * Serialisable condition triggering a passive bonus.
+ * The gamification service evaluates it against the set being logged.
+ * Conditions must be pure data (no functions) so PlayerClass objects stay
+ * JSON-safe and can be shipped from the server later.
+ */
+export type ClassBonusCondition =
+  /** Compound lifts, low reps, heavy weight relative to the user's bodyweight. */
+  | {
+      kind: 'heavy_compound';
+      maxReps: number;           // e.g. 5 — only trigger for low-rep sets
+      minBodyweightRatio: number;// e.g. 1.0 — weight / bodyweight ≥ ratio
+    }
+  /** Any set performed on a bodyweight-flagged exercise. */
+  | { kind: 'bodyweight_exercise' }
+  /** Isolation movement in hypertrophy rep range. */
+  | {
+      kind: 'isolation_hypertrophy';
+      minReps: number;           // e.g. 8
+      maxReps: number;           // e.g. 15
+    }
+  /** Exercise category match (e.g. hiit). */
+  | { kind: 'category'; category: ExerciseCategory }
+  /** Very high-rep set (endurance work). */
+  | { kind: 'high_reps'; minReps: number }
+  /** Exercise flagged as compound. */
+  | { kind: 'movement'; movement: Movement };
+
+export interface ClassBonus {
+  id: string;
+  label: string;           // Short display label — "Heavy Hitter"
+  description: string;     // Full description used in class selection UI
+  multiplier: number;      // 1.25 = +25% XP when condition matches
+  condition: ClassBonusCondition;
+}
+
+export interface PlayerClass {
+  id: PlayerClassId;
+  name: string;            // FR display name — "Tank"
+  nameEn: string;
+  tagline: string;         // 1-line hook — "Brise les barres."
+  description: string;     // Paragraph description for the class-picker screen
+  colorHex: string;
+  icon: string;            // Emoji or key for later icon system
+  /** Favourite muscles / categories — used for secondary bonuses & UI sorting. */
+  affinity: {
+    categories?: ExerciseCategory[];
+    muscles?: MuscleGroupId[];
+  };
+  /** Stacking rule: all matching bonuses multiply together. */
+  bonuses: ClassBonus[];
+}
+
+// ===========================================================================
+// 7. USER PROFILE
 // ===========================================================================
 
 export type WeightUnit = 'kg' | 'lbs';
@@ -301,6 +344,8 @@ export type Theme = 'dark' | 'light' | 'system';
 
 export interface UserPreferences {
   weightUnit: WeightUnit;
+  /** User's bodyweight in kg — used as `weight` for bodyweight exercises. */
+  bodyweightKg: number;
   defaultRestSeconds: number;
   theme: Theme;
   hapticFeedback: boolean;
@@ -314,15 +359,17 @@ export interface UserProfile {
   avatarUrl?: string;
   createdAt: number;
 
-  // Global progression
+  /** RPG class — drives XP multipliers in gamificationService. */
+  playerClassId: PlayerClassId;
+  /** Timestamp of last class change — we may add cooldown later. */
+  playerClassChangedAt: number | null;
+
   totalXp: number;
   level: number;
   xpToNextLevel: number;
 
-  // Per-muscle progression (always contains the 17 keys)
   muscleStats: Record<MuscleGroupId, MuscleGroupStats>;
 
-  // Streaks & lifetime counters
   currentStreak: number;
   longestStreak: number;
   totalWorkouts: number;
@@ -333,7 +380,7 @@ export interface UserProfile {
 }
 
 // ===========================================================================
-// 7. GAMIFICATION EVENTS (audit log / debug)
+// 8. GAMIFICATION EVENTS (audit log / debug)
 // ===========================================================================
 
 export type XpEventReason =
@@ -342,17 +389,18 @@ export type XpEventReason =
   | 'quest_reward'
   | 'streak_bonus'
   | 'first_time_bonus'
-  | 'deconditioning_penalty';
+  | 'deconditioning_penalty'
+  | 'class_bonus';
 
 export interface XpEvent {
   id: string;
   timestamp: number;
   muscleId: MuscleGroupId | 'global';
   baseXp: number;
-  modifier: number;          // e.g. 0.5 when "épuisé", 1.1 when compound
-  finalXp: number;           // baseXp * modifier (may be negative for penalty)
+  modifier: number;
+  finalXp: number;
   reason: XpEventReason;
-  sourceId?: string;         // workoutSessionId | questId | setId
+  sourceId?: string;
 }
 
 export interface DeconditioningCheckResult {
@@ -367,13 +415,11 @@ export interface DeconditioningCheckResult {
 }
 
 // ===========================================================================
-// 8. STORE SHAPES (re-exported for convenience by the Zustand store)
+// 9. STORE SHAPES (re-exported for convenience)
 // ===========================================================================
 
-/** Payload used by the tracker to add a set. */
 export type NewSetPayload = Omit<WorkoutSet, 'id' | 'completedAt' | 'setNumber'>;
 
-/** Payload used to create a custom template from scratch. */
 export type NewTemplatePayload = Omit<
   WorkoutTemplate,
   'id' | 'isBuiltIn' | 'createdAt' | 'updatedAt'
