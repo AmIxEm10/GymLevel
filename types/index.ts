@@ -294,13 +294,9 @@ export interface Quest {
 // ===========================================================================
 
 export type PlayerClassId =
-  | 'novice'       // Default — no passive bonus
-  | 'fighter'      // Hypertrophy + dumbbells
-  | 'tanker'       // Raw strength + compound lifts
-  | 'assassin'     // Bodyweight / calisthenics
-  | 'ranger'       // Endurance + cardio/HIIT
-  | 'mage'         // Precision — isolation on machines/cables
-  | 'healer';      // Core / regularity
+  | 'guerrier'   // Force / charges lourdes
+  | 'assassin'   // Calisthénie / poids du corps
+  | 'tank';      // Hypertrophie / volume
 
 /**
  * Serialisable condition triggering a passive bonus.
@@ -422,6 +418,42 @@ export interface Inventory {
   equipment: EquipmentItem[];
   /** Currently worn items — at most one per slot. */
   equipped: Record<EquipmentSlot, EquipmentItem | null>;
+  /** Consumables (elixirs, scrolls, keys). */
+  consumables: ConsumableItem[];
+}
+
+// ---- Consumables ----------------------------------------------------------
+
+export type ConsumableEffect =
+  /** Reduce the global fatigue by `percent` (0..100). One-shot. */
+  | { kind: 'reduce_fatigue'; percent: number }
+  /** Flat XP grant on the global counter. */
+  | { kind: 'instant_xp'; amount: number }
+  /** Unlocks a special quest / dungeon later in the roadmap. */
+  | { kind: 'unlock_dungeon' };
+
+export type ConsumableSubtype = 'elixir' | 'scroll' | 'key' | 'relic';
+
+export interface ConsumableItem {
+  id: string;
+  templateId: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  rarity: EquipmentRarity;
+  subtype: ConsumableSubtype;
+  effect: ConsumableEffect;
+  acquiredAt: number;
+}
+
+export interface ConsumableTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  rarity: EquipmentRarity;
+  subtype: ConsumableSubtype;
+  effect: ConsumableEffect;
 }
 
 /** Declarative loot reward attached to a Quest. */
@@ -459,11 +491,34 @@ export interface UserPreferences {
   notifications: boolean;
 }
 
+/** Personal Record per exercise — feeds PR-aware quest scaling. */
+export interface PersonalRecord {
+  exerciseId: string;
+  /** Heaviest single working set (any reps). */
+  bestWeight: number;
+  /** Highest rep count on any weight. */
+  bestReps: number;
+  /** Highest volume on a single set (weight × reps). */
+  bestVolume: number;
+  /** Estimated 1-rep max (Epley formula). */
+  bestEstimated1RM: number;
+  lastUpdatedAt: number;
+}
+
+/** Active profile-wide buffs from consumables. */
+export interface ProfileBuffs {
+  /** Fatigue reduction buff. Applied once, cleared after one fatigue recompute. */
+  pendingFatigueReduction?: number; // absolute points to subtract from global fatigue (0..100)
+}
+
 export interface UserProfile {
   id: string;
   nickname: string;
   avatarUrl?: string;
   createdAt: number;
+
+  /** Flag raised when the user has cleared the onboarding flow. */
+  hasAcceptedSystemTerms: boolean;
 
   /** RPG class — drives XP multipliers in gamificationService. */
   playerClassId: PlayerClassId;
@@ -475,6 +530,12 @@ export interface UserProfile {
   xpToNextLevel: number;
 
   muscleStats: Record<MuscleGroupId, MuscleGroupStats>;
+
+  /** Personal Records keyed by exerciseId. */
+  personalRecords: Record<string, PersonalRecord>;
+
+  /** Active buffs from consumables. */
+  buffs: ProfileBuffs;
 
   /** Owned + currently equipped loot. */
   inventory: Inventory;

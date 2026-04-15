@@ -12,14 +12,17 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type {
+  ConsumableItem,
   DeconditioningCheckResult,
   EquipmentItem,
   EquipmentSlot,
   Exercise,
   Inventory,
   MuscleGroupId,
+  MuscleStatus,
   NewSetPayload,
   NewTemplatePayload,
+  PersonalRecord,
   PlayerClass,
   PlayerClassId,
   Quest,
@@ -35,8 +38,14 @@ import {
   STREAK_MAX_BONUS_DAYS,
   STREAK_XP_BONUS_PER_DAY,
 } from '@/constants/gamification';
+import {
+  CONSUMABLE_TEMPLATES_BY_ID,
+  createStarterConsumables,
+  mintConsumable,
+} from '@/data/consumables';
 import { emptyEquippedMap } from '@/data/equipment';
 import { EXERCISES, EXERCISES_BY_ID } from '@/data/exercises';
+import { ALL_MUSCLE_IDS } from '@/data/muscleGroups';
 import { createInitialMuscleStatsRecord } from '@/data/muscleGroups';
 import {
   PLAYER_CLASSES,
@@ -52,6 +61,8 @@ import {
   applySetBreakdownToProfile,
   applyXpToLevel,
   computeSetXp,
+  effectiveSetWeight,
+  updatePersonalRecord,
 } from '@/services/gamificationService';
 import {
   checkQuestProgress,
@@ -94,20 +105,24 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   notifications: true,
 };
 
-function createDefaultInventory(): Inventory {
+function createDefaultInventory(now: number): Inventory {
   return {
     equipment: [],
     equipped: emptyEquippedMap(),
+    consumables: createStarterConsumables(now),
   };
 }
 
 function createDefaultProfile(now: number): UserProfile {
   return {
     id: 'local_user',
-    nickname: 'Chasseur',
+    nickname: '',
     createdAt: now,
 
-    playerClassId: 'novice',
+    hasAcceptedSystemTerms: false,
+
+    // Default class chosen during onboarding — Guerrier is the starter hint.
+    playerClassId: 'guerrier',
     playerClassChangedAt: null,
 
     totalXp: 0,
@@ -115,8 +130,10 @@ function createDefaultProfile(now: number): UserProfile {
     xpToNextLevel: 100,
 
     muscleStats: createInitialMuscleStatsRecord(),
+    personalRecords: {},
+    buffs: {},
 
-    inventory: createDefaultInventory(),
+    inventory: createDefaultInventory(now),
 
     currentStreak: 0,
     longestStreak: 0,
@@ -171,6 +188,8 @@ interface AppState {
 
   // --- Identity -----------------------------------------------------------
   updateNickname: (name: string) => void;
+  /** Accept the System terms — final step of the onboarding flow. */
+  acceptSystemTerms: () => void;
 
   // --- Preferences --------------------------------------------------------
   updatePreferences: (patch: Partial<UserPreferences>) => void;
@@ -182,6 +201,8 @@ interface AppState {
   // --- Session / Tracker --------------------------------------------------
   startSessionFromTemplate: (templateId: string) => void;
   startBlankSession: (name?: string) => void;
+  /** Random 5-exercise balanced session — "Donjon Instantané". */
+  startInstantDungeon: () => void;
   addExerciseToSession: (exerciseId: string) => void;
   removeExerciseFromSession: (workoutExerciseId: string) => void;
   addSet: (workoutExerciseId: string, payload: NewSetPayload) => void;
@@ -207,6 +228,12 @@ interface AppState {
   equipItem: (itemId: string) => void;
   unequipItem: (slot: EquipmentSlot) => void;
   dismissLootDrop: () => void;
+
+  // --- Consumables --------------------------------------------------------
+  consumeItem: (itemId: string) => void;
+  /** Non-persisted — recent consumed item, for a confirmation toast. */
+  lastConsumed: ConsumableItem | null;
+  dismissLastConsumed: () => void;
 
   // --- Templates ----------------------------------------------------------
   cloneTemplate: (templateId: string) => string | null;
@@ -237,6 +264,7 @@ export const useAppStore = create<AppState>()(
       isInitialized: false,
       needsOnboarding: true,
       lastLootDrop: null,
+      lastConsumed: null,
 
       // -------------------------------------------------------------------
       // Lifecycle
@@ -249,9 +277,14 @@ export const useAppStore = create<AppState>()(
         // the Quêtes tab is populated even before onboarding completes.
         get().refreshDailyQuests(false);
 
-        // Onboarding gate — bodyweight MUST be set for the bio-monitoring
-        // pipeline (XP routing, deconditioning, status refresh).
-        if (currentProfile.preferences.bodyweightKg === null) {
+        // Onboarding gate — bodyweight + nickname + accepted terms.
+        const prefs = currentProfile.preferences;
+        const onboardingIncomplete =
+          prefs.bodyweightKg === null ||
+          currentProfile.nickname.trim().length === 0 ||
+          !currentProfile.hasAcceptedSystemTerms;
+
+        if (onboardingIncomplete) {
           set({ isInitialized: false, needsOnboarding: true });
           return;
         }
@@ -300,6 +333,25 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
+      acceptSystemTerms: () => {
+        set(s => {
+          const now = Date.now();
+          const prefs = s.profile.preferences;
+          const ok =
+            prefs.bodyweightKg !== null &&
+            s.profile.nickname.trim().length > 0;
+          if (!ok) return s;
+          return {
+            profile: {
+              ...s.profile,
+              hasAcceptedSystemTerms: true,
+              playerClassChangedAt: s.profile.playerClassChangedAt ?? now,
+            },
+            needsOnboarding: false,
+          };
+        });
+      },
+
       // -------------------------------------------------------------------
       // Preferences
       // -------------------------------------------------------------------
@@ -322,9 +374,6 @@ export const useAppStore = create<AppState>()(
             ...s.profile,
             preferences: { ...s.profile.preferences, bodyweightKg: clamped },
           },
-          // First-time set clears the onboarding gate; initializeApp() can
-          // now complete on the next call.
-          needsOnboarding: false,
         }));
       },
 
@@ -363,6 +412,36 @@ export const useAppStore = create<AppState>()(
       startBlankSession: (name = 'Séance libre') => {
         if (get().activeSession) return;
         set({ activeSession: blankSession(name, Date.now()) });
+      },
+
+      startInstantDungeon: () => {
+        const now = Date.now();
+        // Build a balanced 5-exercise pick: 1 push, 1 pull, 1 legs,
+        // 1 core, 1 hiit-or-accessory.
+        const pickOne = (cat: 'push' | 'pull' | 'legs' | 'core' | 'hiit') => {
+          const pool = EXERCISES.filter(ex => ex.category === cat);
+          if (pool.length === 0) return null;
+          return pool[Math.floor(Math.random() * pool.length)] ?? null;
+        };
+        const picks = [
+          pickOne('push'),
+          pickOne('pull'),
+          pickOne('legs'),
+          pickOne('core'),
+          pickOne('hiit'),
+        ].filter((e): e is Exercise => e !== null);
+
+        // Abandon any active session first
+        if (get().activeSession) {
+          get().abandonSession();
+        }
+
+        // Seed a blank session then append exercises
+        let session = blankSession('Donjon Instantané', now);
+        for (const ex of picks) {
+          session = svcAddExercise(session, ex.id, now);
+        }
+        set({ activeSession: session });
       },
 
       addExerciseToSession: exerciseId => {
@@ -425,7 +504,27 @@ export const useAppStore = create<AppState>()(
         );
 
         // 4) Apply to profile (XP + level + per-muscle stats)
-        const nextProfile = applySetBreakdownToProfile(profile, breakdown, now);
+        let nextProfile = applySetBreakdownToProfile(profile, breakdown, now);
+
+        // 4bis) Update PRs if this set beats anything on record
+        const effectiveW = effectiveSetWeight(newSet, exercise, bodyweight);
+        const existingPr = nextProfile.personalRecords[exercise.id];
+        const { pr, improved } = updatePersonalRecord(
+          existingPr,
+          newSet,
+          exercise.id,
+          effectiveW,
+          now,
+        );
+        if (improved || !existingPr) {
+          nextProfile = {
+            ...nextProfile,
+            personalRecords: {
+              ...nextProfile.personalRecords,
+              [exercise.id]: pr,
+            },
+          };
+        }
 
         // 5) Update session aggregates
         const nextSession: WorkoutSession = {
@@ -443,11 +542,6 @@ export const useAppStore = create<AppState>()(
 
         // 6) Feed quests — the listener
         const category = exercise.category;
-        const effectiveW =
-          exercise.isBodyweight && newSet.weight === 0
-            ? Math.max(1, bodyweight)
-            : newSet.weight;
-
         let quests = state.activeQuests;
 
         // Volume quests (filtered or not)
@@ -697,10 +791,20 @@ export const useAppStore = create<AppState>()(
           now >= nextQuestExpiry(lastQuestGenerationAt) - 1;
 
         if (needsNew) {
+          // Aggregate PR peaks for quest scaling
+          let peakWeightPr = 0;
+          let peakVolumePr = 0;
+          for (const pr of Object.values(profile.personalRecords)) {
+            if (pr.bestWeight > peakWeightPr) peakWeightPr = pr.bestWeight;
+            if (pr.bestVolume > peakVolumePr) peakVolumePr = pr.bestVolume;
+          }
+
           const fresh = generateDailyQuests(
             {
               level: profile.level,
               currentStreak: profile.currentStreak,
+              peakWeightPr,
+              peakVolumePr,
             },
             now,
           );
@@ -796,6 +900,82 @@ export const useAppStore = create<AppState>()(
       },
 
       // -------------------------------------------------------------------
+      // Consumables
+      // -------------------------------------------------------------------
+      consumeItem: itemId => {
+        set(s => {
+          const item = s.profile.inventory.consumables.find(c => c.id === itemId);
+          if (!item) return s;
+
+          let profile = s.profile;
+
+          // Apply effect
+          switch (item.effect.kind) {
+            case 'reduce_fatigue': {
+              // Roll back each muscle's status by the given percent — we
+              // shave that share of volumeLast24h AND soften the status
+              // tier by one level for a meaningful immediate feedback.
+              const reduction = item.effect.percent / 100;
+              const nextMuscleStats = { ...profile.muscleStats };
+              for (const id of ALL_MUSCLE_IDS) {
+                const stats = nextMuscleStats[id];
+                const nextStatus: MuscleStatus =
+                  stats.status === 'epuise'
+                    ? 'fatigue'
+                    : stats.status === 'fatigue'
+                    ? 'actif'
+                    : stats.status === 'actif'
+                    ? 'frais'
+                    : 'frais';
+                nextMuscleStats[id] = {
+                  ...stats,
+                  volumeLast24h: Math.max(0, stats.volumeLast24h * (1 - reduction)),
+                  status: nextStatus,
+                  statusUntil: nextStatus === 'epuise' ? stats.statusUntil : null,
+                };
+              }
+              profile = { ...profile, muscleStats: nextMuscleStats };
+              break;
+            }
+            case 'instant_xp': {
+              const g = applyXpToLevel(
+                profile.level,
+                profile.totalXp,
+                item.effect.amount,
+              );
+              profile = {
+                ...profile,
+                totalXp: g.xp,
+                level: g.level,
+                xpToNextLevel: g.xpToNextLevel,
+              };
+              break;
+            }
+            case 'unlock_dungeon':
+              // Placeholder — will be wired to a scripted dungeon later.
+              break;
+          }
+
+          return {
+            profile: {
+              ...profile,
+              inventory: {
+                ...profile.inventory,
+                consumables: profile.inventory.consumables.filter(
+                  c => c.id !== itemId,
+                ),
+              },
+            },
+            lastConsumed: item,
+          };
+        });
+      },
+
+      dismissLastConsumed: () => {
+        set({ lastConsumed: null });
+      },
+
+      // -------------------------------------------------------------------
       // Templates
       // -------------------------------------------------------------------
       cloneTemplate: templateId => {
@@ -842,7 +1022,7 @@ export const useAppStore = create<AppState>()(
         lastQuestGenerationAt: state.lastQuestGenerationAt,
         lastDeconditioningResult: state.lastDeconditioningResult,
       }),
-      version: 3,
+      version: 4,
       migrate: (persistedState, version) => {
         const s =
           (persistedState as
@@ -866,9 +1046,54 @@ export const useAppStore = create<AppState>()(
         }
 
         // v2 → v3: Quest shape gained `category` + `rank` + `templateId`.
-        // Old instances would crash the UI — wipe them; a fresh batch is
-        // generated by the next refreshDailyQuests() call.
         if (version < 3) {
+          s.activeQuests = [];
+          s.lastQuestGenerationAt = null;
+        }
+
+        // v3 → v4:
+        //   - 7-class roster collapsed to 3 (guerrier/assassin/tank)
+        //   - New UserProfile fields: personalRecords, buffs,
+        //     hasAcceptedSystemTerms
+        //   - New inventory.consumables array
+        //   - Wipe activeQuests again since their targets were scaled on
+        //     the old class and lack PR-aware fields.
+        if (version < 4) {
+          if (s.profile && typeof s.profile === 'object') {
+            const p = s.profile as Record<string, unknown>;
+            const oldClass = p.playerClassId as string | undefined;
+            const mapping: Record<string, PlayerClassId> = {
+              guerrier: 'guerrier',
+              assassin: 'assassin',
+              tank: 'tank',
+              // legacy values:
+              tanker: 'guerrier',
+              fighter: 'tank',
+              mage: 'tank',
+              healer: 'tank',
+              ranger: 'assassin',
+              novice: 'guerrier',
+            };
+            p.playerClassId = mapping[oldClass ?? 'guerrier'] ?? 'guerrier';
+
+            if (!p.personalRecords) p.personalRecords = {};
+            if (!p.buffs) p.buffs = {};
+            if (typeof p.hasAcceptedSystemTerms !== 'boolean') {
+              // Existing users with a non-empty nickname + bodyweight are
+              // considered onboarded retroactively.
+              const prefs = (p.preferences as Record<string, unknown>) ?? {};
+              const hasBw = typeof prefs.bodyweightKg === 'number';
+              const hasName =
+                typeof p.nickname === 'string' && p.nickname.trim().length > 0;
+              p.hasAcceptedSystemTerms = hasBw && hasName;
+            }
+
+            const inventory = p.inventory as Record<string, unknown> | undefined;
+            if (inventory && !inventory.consumables) {
+              inventory.consumables = [];
+            }
+          }
+
           s.activeQuests = [];
           s.lastQuestGenerationAt = null;
         }

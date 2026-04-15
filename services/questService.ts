@@ -50,6 +50,10 @@ import { computeRank, shiftRank, type Rank } from '@/data/ranks';
 export interface QuestGenerationStats {
   level: number;
   currentStreak: number;
+  /** Highest lifetime `bestWeight` across all PRs — anchors max_weight quests. */
+  peakWeightPr: number;
+  /** Highest lifetime `bestVolume` on a single set — anchors some volume quests. */
+  peakVolumePr: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,7 +75,14 @@ function scaleTarget(
   tpl: QuestLibraryEntry,
   stats: QuestGenerationStats,
 ): number {
-  const scaled = tpl.baseTarget * (1 + stats.level * tpl.levelScaling);
+  let scaled = tpl.baseTarget * (1 + stats.level * tpl.levelScaling);
+
+  // PR-aware scaling: for max_weight quests, target = max(scaled, PR × 1.05)
+  // so the goal always sits a notch above the athlete's current record.
+  if (tpl.type === 'max_weight' && stats.peakWeightPr > 0) {
+    scaled = Math.max(scaled, stats.peakWeightPr * 1.05);
+  }
+
   // Round durations to the nearest 30s, reps to integer, kg to nearest 5.
   if (tpl.type === 'workout_duration') {
     return Math.round(scaled / 30) * 30;

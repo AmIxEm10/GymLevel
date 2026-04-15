@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import {
+  Check,
   Clock,
   Dumbbell,
   HeartPulse,
@@ -8,7 +9,8 @@ import {
   Trophy,
   type LucideIcon,
 } from 'lucide-react-native';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RANK_META } from '@/data/ranks';
@@ -187,6 +189,7 @@ export default function QuestsScreen() {
 // ---------------------------------------------------------------------------
 
 function QuestCard({ quest }: { quest: Quest }) {
+  const claimQuestReward = useAppStore(s => s.claimQuestReward);
   const cat = CATEGORY_META[quest.category];
   const Icon = cat.Icon;
   const rankMeta = RANK_META[quest.rank];
@@ -194,6 +197,30 @@ function QuestCard({ quest }: { quest: Quest }) {
     Math.min(100, (quest.progress / Math.max(1, quest.target)) * 100),
   );
   const isCompleted = quest.status === 'completed';
+
+  // Pulsing glow on completed cards
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!isCompleted) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 900,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isCompleted, pulse]);
 
   return (
     <Pressable
@@ -300,6 +327,38 @@ function QuestCard({ quest }: { quest: Quest }) {
           </View>
         </View>
       </View>
+
+      {/* Claim CTA — only when the quest is completed */}
+      {isCompleted ? (
+        <Animated.View
+          style={{
+            marginTop: 12,
+            shadowColor: '#FBBF24',
+            shadowOpacity: pulse.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.6, 1],
+            }) as unknown as number,
+            shadowRadius: pulse.interpolate({
+              inputRange: [0, 1],
+              outputRange: [12, 24],
+            }) as unknown as number,
+            shadowOffset: { width: 0, height: 0 },
+          }}
+        >
+          <Pressable
+            onPress={() => claimQuestReward(quest.id)}
+            className="flex-row items-center justify-center rounded-xl border-2 border-amber-400 bg-amber-500/20 py-3 active:opacity-70"
+          >
+            <Check size={16} color="#FDE68A" strokeWidth={3} />
+            <Text
+              className="ml-2 text-xs font-black uppercase tracking-[4px] text-amber-200"
+              style={{ textShadowColor: '#FBBF24', textShadowRadius: 10 }}
+            >
+              Réclamer · +{quest.xpReward} XP
+            </Text>
+          </Pressable>
+        </Animated.View>
+      ) : null}
     </Pressable>
   );
 }

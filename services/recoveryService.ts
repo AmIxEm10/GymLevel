@@ -48,20 +48,33 @@ function overloadThreshold(muscleId: MuscleGroupId): number {
 // ---------------------------------------------------------------------------
 
 /**
+ * Hourly passive recovery rate — 2 % of the 24 h window recovers per hour.
+ * Full passive recovery from overload ≈ 50 h without training.
+ */
+export const HOURLY_RECOVERY_RATE = 0.02;
+
+/**
  * Rebuild volumeLast24h / volumeLast7d for a muscle given its lastTrainedAt.
- * NOTE: This is an approximation — the exact rebuild requires replaying
- * sessions from the history (see replayRollingVolumes).
- * This fast path is used on every app resume to decay old volume.
+ * Continuous (linear) decay at HOURLY_RECOVERY_RATE per hour. The 7-day
+ * window still resets hard at the boundary — overload happens on 24 h
+ * which is the important signal.
  */
 export function decayRollingVolumes(
   stats: MuscleGroupStats,
   now: number,
 ): MuscleGroupStats {
   const since = stats.lastTrainedAt ?? 0;
+  if (since === 0) return stats;
+
   const hoursSince = (now - since) / MS_PER_HOUR;
 
-  const next: MuscleGroupStats = { ...stats };
-  if (hoursSince >= 24) next.volumeLast24h = 0;
+  const decayFactor = Math.min(1, hoursSince * HOURLY_RECOVERY_RATE);
+
+  const next: MuscleGroupStats = {
+    ...stats,
+    volumeLast24h: Math.max(0, stats.volumeLast24h * (1 - decayFactor)),
+  };
+
   if (hoursSince / 24 >= 7) {
     next.volumeLast7d = 0;
     next.sessionsLast7d = 0;

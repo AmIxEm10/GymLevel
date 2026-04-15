@@ -23,6 +23,7 @@ import type {
   MuscleGroupId,
   MuscleGroupStats,
   MuscleStatus,
+  PersonalRecord,
   PlayerClass,
   UserProfile,
   WorkoutSet,
@@ -393,6 +394,63 @@ export function applyXpToMuscle(
     volumeLast24h: stats.volumeLast24h + Math.max(0, volumeDelta),
     volumeLast7d: stats.volumeLast7d + Math.max(0, volumeDelta),
     lastTrainedAt: volumeDelta > 0 ? now : stats.lastTrainedAt,
+  };
+}
+
+// ===========================================================================
+// Personal Records
+// ===========================================================================
+
+/** Epley formula for estimated 1-rep max. */
+export function estimated1RM(weight: number, reps: number): number {
+  if (reps <= 1) return weight;
+  return weight * (1 + reps / 30);
+}
+
+/**
+ * Update (or create) the PR for a given exerciseId based on a freshly-logged
+ * set. Returns the new PR + a flag set to true when *any* metric improved.
+ */
+export function updatePersonalRecord(
+  existing: PersonalRecord | undefined,
+  set: WorkoutSet,
+  exerciseId: string,
+  effectiveWeight: number,
+  now: number,
+): { pr: PersonalRecord; improved: boolean } {
+  const volume = effectiveWeight * set.reps;
+  const e1rm = estimated1RM(effectiveWeight, set.reps);
+
+  const base: PersonalRecord = existing ?? {
+    exerciseId,
+    bestWeight: 0,
+    bestReps: 0,
+    bestVolume: 0,
+    bestEstimated1RM: 0,
+    lastUpdatedAt: 0,
+  };
+
+  const bestWeight = Math.max(base.bestWeight, effectiveWeight);
+  const bestReps = Math.max(base.bestReps, set.reps);
+  const bestVolume = Math.max(base.bestVolume, volume);
+  const bestEstimated1RM = Math.max(base.bestEstimated1RM, e1rm);
+
+  const improved =
+    bestWeight > base.bestWeight ||
+    bestReps > base.bestReps ||
+    bestVolume > base.bestVolume ||
+    bestEstimated1RM > base.bestEstimated1RM;
+
+  return {
+    pr: {
+      exerciseId,
+      bestWeight,
+      bestReps,
+      bestVolume,
+      bestEstimated1RM,
+      lastUpdatedAt: improved ? now : base.lastUpdatedAt,
+    },
+    improved,
   };
 }
 

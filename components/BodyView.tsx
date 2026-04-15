@@ -11,11 +11,18 @@ import type { MuscleGroupId, MuscleGroupStats, MuscleStatus } from '@/types';
 type ZoneId =
   | 'shoulders'
   | 'chest'
-  | 'back'
-  | 'arms'
+  | 'back_upper'
+  | 'back_lower'
+  | 'traps'
+  | 'arms_front'
+  | 'arms_back'
   | 'core'
-  | 'legs'
+  | 'legs_front'
+  | 'legs_back'
+  | 'glutes'
   | 'calves';
+
+export type BodyViewMode = 'front' | 'back';
 
 interface Zone {
   id: ZoneId;
@@ -29,6 +36,8 @@ interface Zone {
     height: number;
     radius: number;
   }>;
+  /** Which view(s) this zone is visible on. */
+  visibleOn: BodyViewMode[];
 }
 
 /** Silhouette bounding box in pixels — all rects below are in this space. */
@@ -36,6 +45,7 @@ const BODY_W = 200;
 const BODY_H = 400;
 
 const ZONES: Zone[] = [
+  // -------- Shared: shoulders visible from both sides
   {
     id: 'shoulders',
     label: 'Épaules',
@@ -48,51 +58,89 @@ const ZONES: Zone[] = [
       { top: 58, left: 35, width: 38, height: 28, radius: 14 },
       { top: 58, left: 127, width: 38, height: 28, radius: 14 },
     ],
+    visibleOn: ['front', 'back'],
   },
+
+  // ======================================================== FRONT VIEW ONLY
   {
     id: 'chest',
     label: 'Pectoraux',
     muscleIds: ['pectoraux'],
     rects: [{ top: 86, left: 58, width: 84, height: 44, radius: 16 }],
+    visibleOn: ['front'],
   },
   {
-    id: 'back',
-    label: 'Dos',
-    muscleIds: ['dorsaux', 'trapezes', 'lombaires'],
-    // Rendered as a narrow vertical strip on the right of the body — a
-    // schematic "dorsal view" indicator for the front silhouette.
-    rects: [{ top: 88, left: 175, width: 20, height: 90, radius: 10 }],
-  },
-  {
-    id: 'arms',
-    label: 'Bras',
-    muscleIds: ['biceps', 'triceps', 'avant_bras'],
+    id: 'arms_front',
+    label: 'Bras (biceps)',
+    muscleIds: ['biceps', 'avant_bras'],
     rects: [
       { top: 90, left: 6, width: 22, height: 104, radius: 11 },
-      { top: 90, left: 172, width: 0, height: 0, radius: 0 }, // placeholder, overridden below
-      { top: 90, left: 145, width: 22, height: 104, radius: 11 },
+      { top: 90, left: 172, width: 22, height: 104, radius: 11 },
     ],
+    visibleOn: ['front'],
   },
   {
     id: 'core',
     label: 'Core & Abdos',
     muscleIds: ['abdominaux', 'obliques'],
     rects: [{ top: 134, left: 66, width: 68, height: 58, radius: 14 }],
+    visibleOn: ['front'],
   },
   {
-    id: 'legs',
-    label: 'Jambes',
-    muscleIds: [
-      'quadriceps',
-      'ischio_jambiers',
-      'fessiers',
-      'adducteurs',
-    ],
+    id: 'legs_front',
+    label: 'Quadriceps & Adducteurs',
+    muscleIds: ['quadriceps', 'adducteurs'],
     rects: [
       { top: 196, left: 54, width: 38, height: 96, radius: 14 },
       { top: 196, left: 108, width: 38, height: 96, radius: 14 },
     ],
+    visibleOn: ['front'],
   },
+
+  // ========================================================= BACK VIEW ONLY
+  {
+    id: 'traps',
+    label: 'Trapèzes',
+    muscleIds: ['trapezes'],
+    rects: [{ top: 58, left: 78, width: 44, height: 28, radius: 12 }],
+    visibleOn: ['back'],
+  },
+  {
+    id: 'back_upper',
+    label: 'Dorsaux',
+    muscleIds: ['dorsaux'],
+    rects: [{ top: 88, left: 58, width: 84, height: 46, radius: 16 }],
+    visibleOn: ['back'],
+  },
+  {
+    id: 'back_lower',
+    label: 'Lombaires',
+    muscleIds: ['lombaires'],
+    rects: [{ top: 138, left: 70, width: 60, height: 30, radius: 10 }],
+    visibleOn: ['back'],
+  },
+  {
+    id: 'arms_back',
+    label: 'Bras (triceps)',
+    muscleIds: ['triceps', 'avant_bras'],
+    rects: [
+      { top: 90, left: 6, width: 22, height: 104, radius: 11 },
+      { top: 90, left: 172, width: 22, height: 104, radius: 11 },
+    ],
+    visibleOn: ['back'],
+  },
+  {
+    id: 'glutes',
+    label: 'Fessiers & Ischios',
+    muscleIds: ['fessiers', 'ischio_jambiers'],
+    rects: [
+      { top: 172, left: 54, width: 38, height: 120, radius: 14 },
+      { top: 172, left: 108, width: 38, height: 120, radius: 14 },
+    ],
+    visibleOn: ['back'],
+  },
+
+  // -------- Shared: calves visible from both sides
   {
     id: 'calves',
     label: 'Mollets',
@@ -101,27 +149,24 @@ const ZONES: Zone[] = [
       { top: 296, left: 58, width: 28, height: 70, radius: 12 },
       { top: 296, left: 114, width: 28, height: 70, radius: 12 },
     ],
+    visibleOn: ['front', 'back'],
   },
-];
-
-// Fix the arms zone (second entry was a sentinel)
-ZONES[3].rects = [
-  { top: 90, left: 6, width: 22, height: 104, radius: 11 },
-  { top: 90, left: 172, width: 22, height: 104, radius: 11 },
 ];
 
 // ---------------------------------------------------------------------------
 // Color mapping
 // ---------------------------------------------------------------------------
 
-const STATUS_COLOR: Record<MuscleStatus, { fill: string; border: string; glow: string; label: string }> = {
+const STATUS_COLOR: Record<
+  MuscleStatus,
+  { fill: string; border: string; glow: string; label: string }
+> = {
   frais:   { fill: 'rgba(34,211,238,0.18)',  border: '#22D3EE', glow: '#67E8F9', label: 'Frais' },
   actif:   { fill: 'rgba(96,165,250,0.18)',  border: '#60A5FA', glow: '#93C5FD', label: 'Actif' },
   fatigue: { fill: 'rgba(249,115,22,0.22)',  border: '#F97316', glow: '#FB923C', label: 'Fatigué' },
   epuise:  { fill: 'rgba(239,68,68,0.28)',   border: '#EF4444', glow: '#FCA5A5', label: 'Épuisé' },
 };
 
-/** Worst status wins — a zone goes red if any of its muscles is 'epuise'. */
 const STATUS_RANK: Record<MuscleStatus, number> = {
   frais: 0, actif: 1, fatigue: 2, epuise: 3,
 };
@@ -144,25 +189,70 @@ interface Props {
 }
 
 export function BodyView({ muscleStats }: Props) {
+  const [viewMode, setViewMode] = useState<BodyViewMode>('front');
   const [activeZoneId, setActiveZoneId] = useState<ZoneId | null>('chest');
 
-  const activeZone = useMemo(
-    () => ZONES.find(z => z.id === activeZoneId) ?? null,
-    [activeZoneId],
+  const zonesForView = useMemo(
+    () => ZONES.filter(z => z.visibleOn.includes(viewMode)),
+    [viewMode],
   );
+
+  // If the selected zone isn't visible in the new view, pick the first one.
+  const visibleActive = useMemo(() => {
+    const zone = zonesForView.find(z => z.id === activeZoneId);
+    return zone ?? zonesForView[0] ?? null;
+  }, [zonesForView, activeZoneId]);
+
+  const handleToggle = (mode: BodyViewMode) => {
+    if (mode === viewMode) return;
+    setViewMode(mode);
+    // Reset active zone to the first of the new view
+    const firstZone = ZONES.find(z => z.visibleOn.includes(mode));
+    if (firstZone) setActiveZoneId(firstZone.id);
+  };
 
   return (
     <View>
-      {/* Silhouette container with a soft outer holo-frame */}
+      {/* Front / Back toggle */}
+      <View className="mb-3 flex-row self-center rounded-full border border-blue-500/30 bg-white/[0.03] p-1">
+        {(['front', 'back'] as BodyViewMode[]).map(mode => {
+          const active = viewMode === mode;
+          return (
+            <Pressable
+              key={mode}
+              onPress={() => handleToggle(mode)}
+              className="rounded-full px-5 py-1.5 active:opacity-80"
+              style={{
+                backgroundColor: active ? 'rgba(96,165,250,0.20)' : 'transparent',
+                borderWidth: active ? 1 : 0,
+                borderColor: '#60A5FA',
+                shadowColor: active ? '#60A5FA' : 'transparent',
+                shadowOpacity: active ? 0.7 : 0,
+                shadowRadius: active ? 10 : 0,
+                shadowOffset: { width: 0, height: 0 },
+              }}
+            >
+              <Text
+                className={`text-[10px] font-black uppercase tracking-[4px] ${
+                  active ? 'text-blue-200' : 'text-slate-500'
+                }`}
+                style={
+                  active
+                    ? { textShadowColor: '#60A5FA', textShadowRadius: 8 }
+                    : undefined
+                }
+              >
+                {mode === 'front' ? 'Face' : 'Dos'}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Silhouette */}
       <View className="items-center rounded-2xl border border-blue-500/20 bg-white/[0.03] py-4">
-        <View
-          style={{
-            width: BODY_W,
-            height: BODY_H,
-            position: 'relative',
-          }}
-        >
-          {/* Decorative head */}
+        <View style={{ width: BODY_W, height: BODY_H, position: 'relative' }}>
+          {/* Head */}
           <View
             style={{
               position: 'absolute',
@@ -176,7 +266,6 @@ export function BodyView({ muscleStats }: Props) {
               backgroundColor: 'rgba(255,255,255,0.02)',
             }}
           />
-
           {/* Neck */}
           <View
             style={{
@@ -193,7 +282,7 @@ export function BodyView({ muscleStats }: Props) {
           />
 
           {/* Zones */}
-          {ZONES.map(zone => {
+          {zonesForView.map(zone => {
             const status = worstStatus(zone.muscleIds, muscleStats);
             const palette = STATUS_COLOR[status];
             const isActive = activeZoneId === zone.id;
@@ -247,8 +336,8 @@ export function BodyView({ muscleStats }: Props) {
       </View>
 
       {/* Tooltip / detail panel */}
-      {activeZone ? (
-        <ZoneDetail zone={activeZone} muscleStats={muscleStats} />
+      {visibleActive ? (
+        <ZoneDetail zone={visibleActive} muscleStats={muscleStats} />
       ) : null}
     </View>
   );

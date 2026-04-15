@@ -15,7 +15,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EXERCISES_BY_ID } from '@/data/exercises';
 import {
   selectActiveSession,
-  selectBodyweightKg,
   useAppStore,
 } from '@/store/useAppStore';
 import type { WorkoutExercise } from '@/types';
@@ -33,8 +32,6 @@ function formatChrono(seconds: number): string {
 
 export default function WorkoutActiveScreen() {
   const activeSession = useAppStore(selectActiveSession);
-  const bodyweightKg = useAppStore(selectBodyweightKg);
-  const setBodyweight = useAppStore(s => s.setBodyweight);
   const addSet = useAppStore(s => s.addSet);
   const endSession = useAppStore(s => s.endSession);
   const abandonSession = useAppStore(s => s.abandonSession);
@@ -46,12 +43,6 @@ export default function WorkoutActiveScreen() {
   const [phase, setPhase] = useState<SetPhase>('idle');
   const [elapsed, setElapsed] = useState(0);
   const phaseResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Demo fallback: auto-set bodyweight if never set (real onboarding lands later).
-  useEffect(() => {
-    if (bodyweightKg === null) setBodyweight(70);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // If no active session (e.g. direct deep-link to /workout/active),
   // redirect to the Salle des Portes so the user can pick a template.
@@ -161,7 +152,9 @@ export default function WorkoutActiveScreen() {
 
   const finishSession = () => {
     endSession();
-    router.replace('/');
+    // After endSession the profile is updated and the session is pushed onto
+    // history — the recap screen reads workoutHistory[0] to render the bilan.
+    router.replace('/workout/recap');
   };
 
   const cancelSession = () => {

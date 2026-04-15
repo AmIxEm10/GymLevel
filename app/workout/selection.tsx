@@ -9,6 +9,7 @@ import {
   Sparkles,
   Target,
   X,
+  Zap,
 } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
@@ -21,6 +22,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { DungeonEntryModal } from '@/components/DungeonEntryModal';
 import { RankEmblem } from '@/components/RankEmblem';
 import { EXERCISES, EXERCISES_BY_ID } from '@/data/exercises';
 import { MUSCLE_GROUP_BY_ID } from '@/data/muscleGroups';
@@ -111,8 +113,10 @@ export default function WorkoutSelectionScreen() {
   );
   const saveCustomTemplate = useAppStore(s => s.saveCustomTemplate);
   const abandonSession = useAppStore(s => s.abandonSession);
+  const startInstantDungeon = useAppStore(s => s.startInstantDungeon);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [pendingEntry, setPendingEntry] = useState<WorkoutTemplate | null>(null);
 
   const sortedTemplates = useMemo(() => {
     // Built-ins first, custom last — but within each group, keep insertion order.
@@ -121,20 +125,30 @@ export default function WorkoutSelectionScreen() {
     );
   }, [templates]);
 
-  const launchSession = (templateId: string) => {
-    if (activeSession) {
-      // Replace the existing session with the newly chosen template.
-      abandonSession();
-    }
-    startSessionFromTemplate(templateId);
+  const requestEntry = (template: WorkoutTemplate) => {
+    setPendingEntry(template);
+  };
+
+  const confirmEntry = () => {
+    if (!pendingEntry) return;
+    if (activeSession) abandonSession();
+    startSessionFromTemplate(pendingEntry.id);
+    setPendingEntry(null);
     router.push('/workout/active');
   };
 
   const handleCreate = (payload: NewTemplatePayload) => {
     const id = saveCustomTemplate(payload);
     setShowCreateModal(false);
-    // Auto-launch the freshly created portal
-    launchSession(id);
+    // Auto-launch the freshly created portal via the entry modal
+    const newlyCreated = { ...payload, id, isBuiltIn: false, createdAt: Date.now(), updatedAt: Date.now() } as WorkoutTemplate;
+    setPendingEntry(newlyCreated);
+  };
+
+  const launchInstant = () => {
+    if (activeSession) abandonSession();
+    startInstantDungeon();
+    router.push('/workout/active');
   };
 
   return (
@@ -176,33 +190,47 @@ export default function WorkoutSelectionScreen() {
           exigent davantage.
         </Text>
 
-        {/* Active session banner */}
+        {/* Active session — quick-continue strip */}
         {activeSession ? (
-          <View className="mx-5 mb-4 flex-row items-start rounded-2xl border border-amber-500/50 bg-amber-500/10 p-3">
-            <Flame
-              size={18}
-              color="#FBBF24"
-              strokeWidth={2}
-              style={{ marginTop: 2 }}
-            />
-            <View className="ml-2 flex-1">
-              <Text className="text-xs font-bold uppercase tracking-widest text-amber-300">
-                Séance en cours
-              </Text>
-              <Text className="mt-0.5 text-[11px] text-slate-300">
-                Sélectionner un nouveau portail abandonnera la session active.
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => router.push('/workout/active')}
-              className="ml-2 rounded-lg border border-amber-500/60 bg-amber-500/20 px-3 py-1.5 active:opacity-60"
-            >
-              <Text className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
-                Continuer
-              </Text>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() => router.push('/workout/active')}
+            className="mx-5 mb-4 flex-row items-center rounded-2xl border border-amber-500/60 bg-amber-500/10 p-3 active:opacity-80"
+          >
+            <Flame size={16} color="#FBBF24" strokeWidth={2} />
+            <Text className="ml-2 flex-1 text-[11px] text-slate-300">
+              Séance en cours — tape pour continuer.
+            </Text>
+            <ChevronRight size={14} color="#FBBF24" />
+          </Pressable>
         ) : null}
+
+        {/* Donjon Instantané */}
+        <View className="mx-5 mb-4">
+          <Pressable
+            onPress={launchInstant}
+            className="flex-row items-center justify-center rounded-2xl border-2 border-cyan-400/70 bg-cyan-500/10 py-4 active:opacity-70"
+            style={{
+              shadowColor: '#22D3EE',
+              shadowOpacity: 0.7,
+              shadowRadius: 16,
+              shadowOffset: { width: 0, height: 0 },
+            }}
+          >
+            <Zap size={18} color="#67E8F9" strokeWidth={2.5} />
+            <Text
+              className="ml-2 text-sm font-black uppercase tracking-[5px] text-cyan-200"
+              style={{
+                textShadowColor: '#22D3EE',
+                textShadowRadius: 10,
+              }}
+            >
+              Donjon Instantané
+            </Text>
+          </Pressable>
+          <Text className="mt-1 text-center text-[10px] italic text-slate-600">
+            5 exercices équilibrés tirés au hasard par le Système.
+          </Text>
+        </View>
 
         {/* ================================================== PORTALS */}
         <View className="px-5 pb-4">
@@ -220,7 +248,7 @@ export default function WorkoutSelectionScreen() {
             <PortalCard
               key={tpl.id}
               template={tpl}
-              onSelect={() => launchSession(tpl.id)}
+              onSelect={() => requestEntry(tpl)}
             />
           ))}
         </View>
@@ -259,6 +287,14 @@ export default function WorkoutSelectionScreen() {
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSave={handleCreate}
+      />
+
+      <DungeonEntryModal
+        template={pendingEntry}
+        rank={pendingEntry ? computeTemplateRank(pendingEntry) : 'E'}
+        visible={pendingEntry !== null}
+        onConfirm={confirmEntry}
+        onCancel={() => setPendingEntry(null)}
       />
     </SafeAreaView>
   );

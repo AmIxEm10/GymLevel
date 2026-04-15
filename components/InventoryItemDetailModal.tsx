@@ -1,4 +1,4 @@
-import { X } from 'lucide-react-native';
+import { FlaskConical, X } from 'lucide-react-native';
 import { Modal, Pressable, Text, View } from 'react-native';
 
 import {
@@ -10,6 +10,8 @@ interface Props {
   item: InventoryDisplayItem | null;
   visible: boolean;
   onClose: () => void;
+  /** When provided, a "CONSOMMER" CTA is shown — used for consumables. */
+  onConsume?: () => void;
 }
 
 /**
@@ -17,7 +19,12 @@ interface Props {
  * to a dark backdrop) and displays the selected item's details with a neon
  * border matching its rarity.
  */
-export function InventoryItemDetailModal({ item, visible, onClose }: Props) {
+export function InventoryItemDetailModal({
+  item,
+  visible,
+  onClose,
+  onConsume,
+}: Props) {
   if (!item) return null;
   const palette = RARITY_PALETTE[item.rarity];
   const Icon = item.icon;
@@ -143,6 +150,28 @@ export function InventoryItemDetailModal({ item, visible, onClose }: Props) {
                 ))}
               </View>
             </View>
+          ) : null}
+
+          {/* Consume CTA */}
+          {onConsume ? (
+            <Pressable
+              onPress={onConsume}
+              className="mt-5 flex-row items-center justify-center rounded-xl border-2 border-emerald-400 bg-emerald-500/20 py-3 active:opacity-70"
+              style={{
+                shadowColor: '#10B981',
+                shadowOpacity: 0.8,
+                shadowRadius: 14,
+                shadowOffset: { width: 0, height: 0 },
+              }}
+            >
+              <FlaskConical size={14} color="#6EE7B7" strokeWidth={2.5} />
+              <Text
+                className="ml-2 text-xs font-black uppercase tracking-[4px] text-emerald-200"
+                style={{ textShadowColor: '#10B981', textShadowRadius: 10 }}
+              >
+                Consommer
+              </Text>
+            </Pressable>
           ) : null}
 
           {/* Footer hint */}

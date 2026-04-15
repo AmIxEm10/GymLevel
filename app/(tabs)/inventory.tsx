@@ -12,7 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { InventoryItemDetailModal } from '@/components/InventoryItemDetailModal';
@@ -22,7 +22,11 @@ import {
   type InventoryDisplayItem,
 } from '@/components/InventorySlot';
 import { selectInventory, useAppStore } from '@/store/useAppStore';
-import type { EquipmentItem, EquipmentSlot } from '@/types';
+import type {
+  ConsumableItem,
+  EquipmentItem,
+  EquipmentSlot,
+} from '@/types';
 
 const TOTAL_SLOTS = 20;
 
@@ -34,70 +38,42 @@ const SLOT_ICON: Record<EquipmentSlot, LucideIcon> = {
   accessory: Gem,
 };
 
-// ---------------------------------------------------------------------------
-// Placeholder Solo-Leveling items — surface for the current build while the
-// full consumable / key system isn't wired. They are displayed AFTER the
-// player's real owned equipment so the UI stays honest.
-// ---------------------------------------------------------------------------
+// Icon by consumable subtype
+const CONSUMABLE_ICON: Record<string, LucideIcon> = {
+  elixir: FlaskConical,
+  scroll: Sparkles,
+  key: Key,
+  relic: Gem,
+};
 
-const PLACEHOLDER_ITEMS: InventoryDisplayItem[] = [
-  {
-    id: 'placeholder_health_elixir',
-    name: 'Élixir de Santé',
-    rarity: 'rare',
-    description:
-      "Fiole lumineuse du Système. À consommer lors d'une séance pour soulager un muscle épuisé.",
-    icon: FlaskConical,
+/** Map a store Consumable → display item. */
+function fromConsumable(c: ConsumableItem): InventoryDisplayItem & {
+  consumableId: string;
+} {
+  const Icon = CONSUMABLE_ICON[c.subtype] ?? Gem;
+  const effects: string[] = [];
+  switch (c.effect.kind) {
+    case 'reduce_fatigue':
+      effects.push(`Réduit la fatigue globale de ${c.effect.percent} %.`);
+      break;
+    case 'instant_xp':
+      effects.push(`+${c.effect.amount} XP global immédiat.`);
+      break;
+    case 'unlock_dungeon':
+      effects.push('Débloque une quête spéciale du Système.');
+      break;
+  }
+  return {
+    id: c.id,
+    name: c.name,
+    rarity: c.rarity,
+    description: c.description ?? 'Objet consommable.',
+    icon: Icon,
     kind: 'consumable',
-    effects: ['Réduit la fatigue globale de 20 % pendant 24 h.'],
-  },
-  {
-    id: 'placeholder_force_gauntlets',
-    name: 'Gantelets de Force',
-    rarity: 'epic',
-    description:
-      'Gantelets runiques forgés dans les Abysses. Augmentent la puissance des poussées.',
-    icon: Shield,
-    kind: 'equipment',
-    effects: ['+5 % XP sur tous les exercices de poussée (push).'],
-  },
-  {
-    id: 'placeholder_dungeon_key_basic',
-    name: 'Clé de Donjon (Basic)',
-    rarity: 'common',
-    description:
-      'Clé délivrée par un Chasseur rang E. Permet d’ouvrir une porte instable.',
-    icon: Key,
-    kind: 'key',
-    effects: ['Débloque une quête spéciale de rang E.'],
-  },
-  {
-    id: 'placeholder_power_scroll',
-    name: 'Parchemin de Puissance',
-    rarity: 'epic',
-    description:
-      'Parchemin scellé du Système. Transmet un fragment d’énergie arcanique au porteur.',
-    icon: Sparkles,
-    kind: 'consumable',
-    effects: [
-      '+15 % XP global pendant la prochaine séance.',
-      'Se consume à la première série validée.',
-    ],
-  },
-  {
-    id: 'placeholder_monarch_heart',
-    name: "Cœur du Monarque",
-    rarity: 'legendary',
-    description:
-      'Relique légendaire. Pulse au rythme de la volonté du Chasseur. Réservée aux plus disciplinés.',
-    icon: Gem,
-    kind: 'consumable',
-    effects: [
-      '+25 % XP global pendant 3 séances.',
-      "Ne peut être utilisé qu'une fois par semaine.",
-    ],
-  },
-];
+    effects,
+    consumableId: c.id,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Mapper: EquipmentItem (store) → InventoryDisplayItem (UI)
@@ -125,10 +101,15 @@ function fromEquipment(
 
 export default function InventoryScreen() {
   const inventory = useAppStore(selectInventory);
+  const consumeItem = useAppStore(s => s.consumeItem);
 
-  const [selected, setSelected] = useState<InventoryDisplayItem | null>(null);
+  const [selected, setSelected] = useState<
+    (InventoryDisplayItem & { consumableId?: string }) | null
+  >(null);
 
-  const displayItems = useMemo<InventoryDisplayItem[]>(() => {
+  const displayItems = useMemo<
+    Array<InventoryDisplayItem & { consumableId?: string }>
+  >(() => {
     const equippedIds = new Set(
       Object.values(inventory.equipped)
         .filter((v): v is EquipmentItem => Boolean(v))
@@ -137,15 +118,24 @@ export default function InventoryScreen() {
     const real = inventory.equipment.map(it =>
       fromEquipment(it, equippedIds.has(it.id)),
     );
-    return [...real, ...PLACEHOLDER_ITEMS].slice(0, TOTAL_SLOTS);
-  }, [inventory.equipment, inventory.equipped]);
+    const consumables = inventory.consumables.map(fromConsumable);
+    return [...consumables, ...real].slice(0, TOTAL_SLOTS);
+  }, [inventory.equipment, inventory.equipped, inventory.consumables]);
 
   // Build the 20-slot grid: real + placeholders followed by locked slots.
-  const slots: (InventoryDisplayItem | null)[] = useMemo(() => {
-    const filled: (InventoryDisplayItem | null)[] = [...displayItems];
+  type SlotItem = (InventoryDisplayItem & { consumableId?: string }) | null;
+  const slots: SlotItem[] = useMemo(() => {
+    const filled: SlotItem[] = [...displayItems];
     while (filled.length < TOTAL_SLOTS) filled.push(null);
     return filled;
   }, [displayItems]);
+
+  const handleConsume = () => {
+    if (selected?.consumableId) {
+      consumeItem(selected.consumableId);
+      setSelected(null);
+    }
+  };
 
   const byRarity = useMemo(() => {
     const counts: Record<string, number> = { common: 0, rare: 0, epic: 0, legendary: 0 };
@@ -242,6 +232,7 @@ export default function InventoryScreen() {
         item={selected}
         visible={selected !== null}
         onClose={() => setSelected(null)}
+        onConsume={selected?.consumableId ? handleConsume : undefined}
       />
     </SafeAreaView>
   );
