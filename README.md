@@ -1,85 +1,59 @@
-# GymLevel
+⚔️ GymLevel : Le Système d'Éveil
+"Levez-vous." > L'application de fitness qui transforme votre entraînement en une quête de Rang S. Inspirée par l'univers de Solo Leveling.
 
-Application mobile de fitness gamifiée (RPG) — React Native · Expo · TypeScript · Zustand · NativeWind.
+🌌 Aperçu du Système
+GymLevel n'est pas un simple tracker de sport. C'est une interface biométrique avancée conçue pour monitorer chaque fibre de votre corps et vous pousser au-delà de vos limites.
 
-> **État actuel** : backend verrouillé, première UI (écran Statut). Branche de développement : `claude/fitness-rpg-app-architecture-YqTVA`.
+💎 Fonctionnalités Maîtresses
+L'Éveil (Onboarding) : Choisissez votre classe (Guerrier, Assassin ou Tank) et définissez vos stats de départ. Le Système adapte l'XP en fonction de votre poids et de votre spécialité.
 
-## Stack
+Tableau des Quêtes Dynamiques : Des défis quotidiens scalés sur vos Records Personnels (PR). Ne vous contentez pas de vous entraîner, accomplissez des exploits.
 
-| Couche              | Technologie                                    |
-| ------------------- | ---------------------------------------------- |
-| Framework           | React Native 0.74 + Expo 51 (TypeScript strict)|
-| Routing             | `expo-router` (typed routes)                   |
-| Gestion d'état      | Zustand + persist (AsyncStorage)               |
-| Base de données     | `expo-sqlite` (mirror prévu via services/db)   |
-| Styling (à venir)   | NativeWind                                     |
+Silhouette Biométrique 360° : Un mannequin interactif (Face/Dos) qui suit la fatigue musculaire en temps réel. Grâce à un algorithme de récupération passive (-2% de volume/heure), voyez vos muscles repasser au bleu néon quand vous êtes prêt.
 
-## Arborescence
+Le Mode Combat (Workout) : Entrez dans des "Donjons" (séances) avec un HUD optimisé pour l'effort. Une fois le portail franchi, vous ne pouvez plus reculer.
 
-```
-GymLevel/
-├── app/
-│   ├── _layout.tsx             # Root layout (boot initializeApp, safe area)
-│   └── (tabs)/
-│       ├── _layout.tsx         # Tabs (Statut pour l'instant)
-│       └── profile.tsx         # Écran STATUT (Solo Leveling)
-├── components/                 # Composants UI (à venir)
-├── store/
-│   └── useAppStore.ts          # Store Zustand unique — orchestre tout
-├── services/
-│   ├── gamificationService.ts  # Volume -> XP, level curves
-│   ├── recoveryService.ts      # Mode Survie & statuts musculaires
-│   ├── questService.ts         # Génération + suivi des quêtes
-│   ├── workoutService.ts       # Lifecycle sessions & templates
-│   └── database/               # Couche SQLite (à venir)
-├── data/
-│   ├── muscleGroups.ts         # Les 17 groupes musculaires
-│   ├── exercises.ts            # Librairie d'exercices + activation musculaire
-│   ├── playerClasses.ts        # Classes RPG Solo Leveling (7 classes)
-│   ├── equipment.ts            # Loot — templates d'items + pool par rareté
-│   └── workoutTemplates.ts     # Routines pré-construites
-├── constants/
-│   └── gamification.ts         # Tous les nombres magiques du RPG
-├── types/
-│   └── index.ts                # TOUTES les interfaces TS
-├── hooks/                      # Hooks réutilisables (à venir)
-└── assets/
-```
+Inventaire & Loot : Gagnez des équipements et des consommables (élixir de récupération) pour booster vos performances.
 
-## Modèles de données (résumé)
+🛠️ Stack Technique
+Le Système repose sur des fondations solides :
 
-Voir `types/index.ts`. Entités principales :
-- `MuscleGroup` / `MuscleGroupStats` (17 muscles, statut `frais | actif | fatigue | epuise`)
-- `Exercise` + `MuscleInvolvement[]` (routage XP pondéré)
-- `WorkoutSet`, `WorkoutExercise`, `WorkoutSession`
-- `WorkoutTemplate` (built-in ou clonés)
-- `Quest` (quotidiennes)
-- `UserProfile` (XP global + 17 barres muscle + streaks)
+Framework : Expo / React Native (Architecture basée sur les fichiers avec Expo Router).
 
-## Mécaniques RPG implémentées
+Gestion d'État : Zustand (Persistence via AsyncStorage).
 
-1. **Formule XP** — `XP = volume × setModifier × exerciseMult × classMult` puis routage pondéré par muscle (× statusMod) via `Exercise.muscleInvolvement`.
-2. **Courbe de niveau** — `xpRequired(n) = 100 · n^1.5`, cap à 99.
-3. **Classes RPG (Chasseur, univers Solo Leveling)** — 7 classes aux bonus data-driven :
-   - **Novice** 🌱 — aucun bonus (classe de départ).
-   - **Fighter** 🥊 — +25 % hypertrophie (8-12 reps), +15 % haltères.
-   - **Tanker** 🛡️ — +30 % force pure (compound 1-5 reps), +10 % tout composé.
-   - **Assassin** 🗡️ — +35 % exercices au poids du corps, +10 % séries 20+ reps.
-   - **Ranger** 🏹 — +30 % HIIT, +20 % cardio, +15 % endurance (15+ reps).
-   - **Mage** 🧙 — +30 % isolation sur machine ou poulie, +10 % tout exercice à la poulie.
-   - **Healer** ⛑️ — +30 % exercices core, +15 % passif dès 3 jours de streak.
+Design : NativeWind (Tailwind CSS pour le style holographique).
 
-   Les bonus stackent multiplicativement lorsqu'ils matchent tous, avec un plafond global `MAX_CLASS_MULTIPLIER = 1.5` pour éviter l'inflation d'XP. Les conditions supportent la composition logique via `all_of` et peuvent lire le streak courant via `streak_active`.
-4. **Mode Survie (Déconditionnement)** — après 7j d'inactivité, perte de 2 % d'XP/jour (cap 50 %), vérifié au lancement avec cooldown de 12 h.
-5. **Statut Épuisé** — dépasser un seuil de volume 24h fait passer un muscle en `epuise` → XP × 0.5 jusqu'au lendemain.
-6. **Quêtes quotidiennes** — 3 quêtes générées par tranche de difficulté (easy/medium/hard), expirent à 04:00 locale.
-7. **Streaks** — bonus XP de 25/jour jusqu'à 14 jours consécutifs.
-8. **Bodyweight personnalisé** — `UserPreferences.bodyweightKg` (nullable). Utilisé comme poids effectif pour les exercices au poids du corps et comme référence du ratio Tank.
-9. **Gate d'onboarding** — `needsOnboarding: true` tant que `bodyweightKg` est `null`. `initializeApp()` court-circuite et `addSet` refuse de logger tant que la valeur n'est pas renseignée (écran "Évaluation du Système").
-10. **Équipement (Loot)** — 4 slots (tête / corps / arme / accessoire), 4 raretés (Commun / Rare / Épique / Légendaire). Les items embarquent un tableau `ClassBonus[]` évalué par le même moteur que les classes. `equipmentMult` stacke multiplicativement, plafonné par `MAX_EQUIPMENT_MULTIPLIER = 1.3`. Les quêtes droppent du loot selon leur difficulté (medium→Commun, hard→Rare, epic→Épique) via `rollLootFromQuest`. Actions du store : `equipItem(itemId)`, `unequipItem(slot)`, `dismissLootDrop()`.
+Données : SQLite (via expo-sqlite) pour un historique de mission indestructible.
 
-## Prochaine étape
+Interface : SVG Interactifs pour la silhouette anatomique.
 
-Une fois les modèles validés :
-- Couche SQLite (`services/database/`) pour remplacer la persistance AsyncStorage.
-- UI Expo Router (`app/`) — écrans Tracker, Profile, Quests, Templates, BodyMap.
+🚀 Installation & Déploiement
+Pour les Développeurs
+Bash
+# Cloner le portail
+git clone https://github.com/votre-username/GymLevel.git
+
+# Installer les dépendances
+npm install
+
+# Lancer le Système
+npx expo start
+Déploiement Web
+Le projet est configuré pour un déploiement automatique sur GitHub Pages.
+
+Bash
+npm run deploy
+🎨 Guide Visuel (HUD)
+L'interface utilise une palette "Deep Night" :
+
+Fond : #020617 (Bleu nuit profond)
+
+Bordures : #1E293B (Acier sombre)
+
+Accents : Cyan Néon et Bleu Électrique pour l'énergie.
+
+🛡️ Licence
+Distribué sous la licence du Système. Toute tentative de triche sur les pompes sera punie par une quête de pénalité dans le désert.
+
+Développé avec passion pour ceux qui ne veulent plus être des simples Chasseurs de Rang E.
