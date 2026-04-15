@@ -369,13 +369,16 @@ export const useAppStore = create<AppState>()(
 
         const playerClass = getPlayerClass(profile.playerClassId);
 
-        // 3) Compute XP breakdown (class multiplier integrated here)
+        // 3) Compute XP breakdown (class multiplier integrated here).
+        //    currentStreak is read directly from the profile so the Healer's
+        //    'streak_active' bonus can evaluate on every set.
         const breakdown = computeSetXp(
           newSet,
           exercise,
           profile.muscleStats,
           bodyweight,
           playerClass,
+          profile.currentStreak,
         );
 
         // 4) Apply to profile (XP + level + per-muscle stats)

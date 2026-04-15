@@ -130,6 +130,8 @@ export interface ClassBonusContext {
   set: WorkoutSet;
   exercise: Exercise;
   userBodyweightKg: number;
+  /** Profile's current streak — read by `streak_active` condition. */
+  currentStreak: number;
 }
 
 /** Evaluate a single condition against a context. Pure + data-driven. */
@@ -137,7 +139,7 @@ export function matchesClassBonus(
   condition: ClassBonusCondition,
   ctx: ClassBonusContext,
 ): boolean {
-  const { set, exercise, userBodyweightKg } = ctx;
+  const { set, exercise, userBodyweightKg, currentStreak } = ctx;
 
   switch (condition.kind) {
     case 'heavy_compound': {
@@ -163,6 +165,19 @@ export function matchesClassBonus(
       return set.reps >= condition.minReps;
     case 'movement':
       return exercise.movement === condition.movement;
+
+    case 'rep_range':
+      return set.reps >= condition.minReps && set.reps <= condition.maxReps;
+    case 'equipment':
+      return condition.equipments.includes(exercise.equipment);
+    case 'muscle_primary':
+      return exercise.primaryMuscles.some(m => condition.muscleIds.includes(m));
+    case 'streak_active':
+      return currentStreak >= condition.minDays;
+
+    case 'all_of':
+      return condition.conditions.every(c => matchesClassBonus(c, ctx));
+
     default:
       return false;
   }
@@ -228,6 +243,7 @@ export function computeSetXp(
   muscleStats: Record<MuscleGroupId, MuscleGroupStats>,
   userBodyweightKg: number,
   playerClass: PlayerClass,
+  currentStreak: number,
 ): SetXpBreakdown {
   const volume = computeSetVolume(set, exercise, userBodyweightKg);
   const setModifier = computeSetModifier(set, exercise);
@@ -236,6 +252,7 @@ export function computeSetXp(
     set,
     exercise,
     userBodyweightKg,
+    currentStreak,
   });
 
   const baseXp = volume * VOLUME_TO_XP_RATIO * setModifier * classCalc.multiplier;

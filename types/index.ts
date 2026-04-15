@@ -277,18 +277,23 @@ export interface Quest {
 
 export type PlayerClassId =
   | 'novice'       // Default — no passive bonus
-  | 'tank'         // Strength / heavy compound lifts
+  | 'fighter'      // Hypertrophy + dumbbells
+  | 'tanker'       // Raw strength + compound lifts
   | 'assassin'     // Bodyweight / calisthenics
-  | 'berserker'    // Hypertrophy / isolation
-  | 'ranger';      // HIIT / endurance
+  | 'ranger'       // Endurance + cardio/HIIT
+  | 'mage'         // Precision — isolation on machines/cables
+  | 'healer';      // Core / regularity
 
 /**
  * Serialisable condition triggering a passive bonus.
- * The gamification service evaluates it against the set being logged.
+ * The gamification service evaluates it against the set being logged,
+ * plus a small context snapshot (bodyweight, current streak).
  * Conditions must be pure data (no functions) so PlayerClass objects stay
  * JSON-safe and can be shipped from the server later.
  */
 export type ClassBonusCondition =
+  // ---- Primitive conditions -----------------------------------------------
+
   /** Compound lifts, low reps, heavy weight relative to the user's bodyweight. */
   | {
       kind: 'heavy_compound';
@@ -300,17 +305,33 @@ export type ClassBonusCondition =
   /** Isolation movement in hypertrophy rep range. */
   | {
       kind: 'isolation_hypertrophy';
-      minReps: number;           // e.g. 8
-      maxReps: number;           // e.g. 15
+      minReps: number;
+      maxReps: number;
     }
-  /** Any isolation movement with reps ≥ minReps (broader than hypertrophy). */
+  /** Any isolation movement with reps ≥ minReps. */
   | { kind: 'isolation_reps'; minReps: number }
   /** Exercise category match (e.g. hiit). */
   | { kind: 'category'; category: ExerciseCategory }
   /** Very high-rep set (endurance work). */
   | { kind: 'high_reps'; minReps: number }
   /** Exercise flagged as compound/isolation. */
-  | { kind: 'movement'; movement: Movement };
+  | { kind: 'movement'; movement: Movement }
+
+  // ---- Primitives added for the Solo Leveling class pack ------------------
+
+  /** Set reps fall inside [minReps, maxReps] — no movement restriction. */
+  | { kind: 'rep_range'; minReps: number; maxReps: number }
+  /** Exercise equipment is one of the listed equipments (OR semantic). */
+  | { kind: 'equipment'; equipments: Equipment[] }
+  /** Exercise primary muscle(s) intersect with the provided list. */
+  | { kind: 'muscle_primary'; muscleIds: MuscleGroupId[] }
+  /** User currently has a training streak ≥ minDays. */
+  | { kind: 'streak_active'; minDays: number }
+
+  // ---- Composition --------------------------------------------------------
+
+  /** Logical AND — every inner condition must match. */
+  | { kind: 'all_of'; conditions: ClassBonusCondition[] };
 
 export interface ClassBonus {
   id: string;
