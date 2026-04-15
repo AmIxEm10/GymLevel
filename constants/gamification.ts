@@ -35,6 +35,14 @@ export const FAILURE_XP_MULTIPLIER = 1.15;
 /** Compound lift global multiplier (applied on top of exercise.xpMultiplier). */
 export const COMPOUND_GLOBAL_MULTIPLIER = 1.0;
 
+/**
+ * Maximum stacked class bonus multiplier.
+ * A class like Tank can trigger several bonuses on the same set; their product
+ * is clamped to this value so the XP economy cannot explode when conditions
+ * align perfectly. 1.5 = +50% hard cap.
+ */
+export const MAX_CLASS_MULTIPLIER = 1.5;
+
 // ---------- Recovery / Status ---------------------------------------------
 
 /** Thresholds (hours since lastTrainedAt) at which a muscle moves status. */
@@ -96,6 +104,7 @@ export const QUEST_REFRESH_HOUR = 4;
 export const STREAK_XP_BONUS_PER_DAY = 25;
 export const STREAK_MAX_BONUS_DAYS = 14;
 
-// ---------- Misc -----------------------------------------------------------
+// ---------- Bodyweight bounds (validated at onboarding) -------------------
 
-export const BODYWEIGHT_DEFAULT_KG = 70;
+export const BODYWEIGHT_MIN_KG = 25;
+export const BODYWEIGHT_MAX_KG = 300;

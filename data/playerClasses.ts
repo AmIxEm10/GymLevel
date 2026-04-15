@@ -116,9 +116,9 @@ export const PLAYER_CLASSES: readonly PlayerClass[] = [
       {
         id: 'berserker_isolation',
         label: 'Tunnel vision',
-        description: '+10 % XP sur toute isolation.',
+        description: '+10 % XP sur toute isolation à partir de 8 reps.',
         multiplier: 1.10,
-        condition: { kind: 'high_reps', minReps: 8 }, // fallback
+        condition: { kind: 'isolation_reps', minReps: 8 },
       },
     ],
   },

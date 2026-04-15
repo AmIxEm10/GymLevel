@@ -303,11 +303,13 @@ export type ClassBonusCondition =
       minReps: number;           // e.g. 8
       maxReps: number;           // e.g. 15
     }
+  /** Any isolation movement with reps ≥ minReps (broader than hypertrophy). */
+  | { kind: 'isolation_reps'; minReps: number }
   /** Exercise category match (e.g. hiit). */
   | { kind: 'category'; category: ExerciseCategory }
   /** Very high-rep set (endurance work). */
   | { kind: 'high_reps'; minReps: number }
-  /** Exercise flagged as compound. */
+  /** Exercise flagged as compound/isolation. */
   | { kind: 'movement'; movement: Movement };
 
 export interface ClassBonus {
@@ -344,8 +346,14 @@ export type Theme = 'dark' | 'light' | 'system';
 
 export interface UserPreferences {
   weightUnit: WeightUnit;
-  /** User's bodyweight in kg — used as `weight` for bodyweight exercises. */
-  bodyweightKg: number;
+  /**
+   * User's bodyweight in kg — used as `weight` for bodyweight exercises
+   * and as the reference for Tank's "heavy_compound" ratio bonus.
+   * `null` means the value has not been set yet: the onboarding screen
+   * ("Évaluation du Système") MUST collect it before any session starts.
+   * `initializeApp()` short-circuits when this is null.
+   */
+  bodyweightKg: number | null;
   defaultRestSeconds: number;
   theme: Theme;
   hapticFeedback: boolean;

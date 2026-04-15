@@ -61,12 +61,13 @@ Voir `types/index.ts`. Entités principales :
    - **Assassin** 🗡️ — +35 % sur exercices au poids du corps, +15 % sur séries 20+ reps.
    - **Berserker** 🔥 — +30 % sur isolations en hypertrophie (8-15 reps).
    - **Ranger** 🏹 — +30 % HIIT, +20 % cardio, +15 % endurance (25+ reps).
-   Les bonus d'une classe stackent multiplicativement lorsqu'ils matchent tous.
+   Les bonus d'une classe stackent multiplicativement lorsqu'ils matchent tous, avec un plafond global `MAX_CLASS_MULTIPLIER = 1.5` pour éviter l'inflation d'XP.
 4. **Mode Survie (Déconditionnement)** — après 7j d'inactivité, perte de 2 % d'XP/jour (cap 50 %), vérifié au lancement avec cooldown de 12 h.
 5. **Statut Épuisé** — dépasser un seuil de volume 24h fait passer un muscle en `epuise` → XP × 0.5 jusqu'au lendemain.
 6. **Quêtes quotidiennes** — 3 quêtes générées par tranche de difficulté (easy/medium/hard), expirent à 04:00 locale.
 7. **Streaks** — bonus XP de 25/jour jusqu'à 14 jours consécutifs.
-8. **Bodyweight personnalisé** — `UserPreferences.bodyweightKg` — utilisé comme poids effectif pour les exercices au poids du corps et comme référence du ratio Tank.
+8. **Bodyweight personnalisé** — `UserPreferences.bodyweightKg` (nullable). Utilisé comme poids effectif pour les exercices au poids du corps et comme référence du ratio Tank.
+9. **Gate d'onboarding** — `needsOnboarding: true` tant que `bodyweightKg` est `null`. `initializeApp()` court-circuite et `addSet` refuse de logger tant que la valeur n'est pas renseignée (écran "Évaluation du Système").
 
 ## Prochaine étape
 

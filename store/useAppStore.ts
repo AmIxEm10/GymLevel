@@ -27,6 +27,8 @@ import type {
 } from '@/types';
 
 import {
+  BODYWEIGHT_MAX_KG,
+  BODYWEIGHT_MIN_KG,
   STREAK_MAX_BONUS_DAYS,
   STREAK_XP_BONUS_PER_DAY,
 } from '@/constants/gamification';
@@ -77,7 +79,9 @@ import {
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   weightUnit: 'kg',
-  bodyweightKg: 70,          // editable via setBodyweight()
+  // Must be collected during onboarding ("Évaluation du Système").
+  // initializeApp() short-circuits while this is null.
+  bodyweightKg: null,
   defaultRestSeconds: 90,
   theme: 'dark',
   hapticFeedback: true,
@@ -141,6 +145,12 @@ interface AppState {
   exercises: Exercise[];
   playerClasses: PlayerClass[];
 
+  // --- Non persisted runtime flags ---------------------------------------
+  /** true once initializeApp() has completed its full pass. */
+  isInitialized: boolean;
+  /** true while profile.preferences.bodyweightKg is null — UI must route to onboarding. */
+  needsOnboarding: boolean;
+
   // --- Lifecycle ----------------------------------------------------------
   initializeApp: () => void;
   resetProfile: () => void;
@@ -200,14 +210,23 @@ export const useAppStore = create<AppState>()(
       exercises: [...EXERCISES],
       playerClasses: [...PLAYER_CLASSES],
 
+      isInitialized: false,
+      needsOnboarding: true,
+
       // -------------------------------------------------------------------
       // Lifecycle
       // -------------------------------------------------------------------
       initializeApp: () => {
         const now = Date.now();
-        let profile = get().profile;
+        const { profile: currentProfile } = get();
 
-        profile = refreshAllMuscleStatuses(profile, now);
+        // Onboarding gate — bodyweight MUST be set before we do anything.
+        if (currentProfile.preferences.bodyweightKg === null) {
+          set({ isInitialized: false, needsOnboarding: true });
+          return;
+        }
+
+        let profile = refreshAllMuscleStatuses(currentProfile, now);
 
         let deconditioningResult: DeconditioningCheckResult | null = null;
         if (shouldRunDeconditioningCheck(profile, now)) {
@@ -216,7 +235,12 @@ export const useAppStore = create<AppState>()(
           deconditioningResult = out.result;
         }
 
-        set({ profile, lastDeconditioningResult: deconditioningResult });
+        set({
+          profile,
+          lastDeconditioningResult: deconditioningResult,
+          isInitialized: true,
+          needsOnboarding: false,
+        });
         get().refreshDailyQuests(false);
       },
 
@@ -230,6 +254,8 @@ export const useAppStore = create<AppState>()(
           completedQuests: [],
           lastQuestGenerationAt: null,
           lastDeconditioningResult: null,
+          isInitialized: false,
+          needsOnboarding: true,
         });
       },
 
@@ -246,12 +272,18 @@ export const useAppStore = create<AppState>()(
       },
 
       setBodyweight: kg => {
-        const clamped = Math.max(25, Math.min(300, Math.round(kg)));
+        const clamped = Math.max(
+          BODYWEIGHT_MIN_KG,
+          Math.min(BODYWEIGHT_MAX_KG, Math.round(kg)),
+        );
         set(s => ({
           profile: {
             ...s.profile,
             preferences: { ...s.profile.preferences, bodyweightKg: clamped },
           },
+          // First-time set clears the onboarding gate; initializeApp() can
+          // now complete on the next call.
+          needsOnboarding: false,
         }));
       },
 
@@ -314,6 +346,14 @@ export const useAppStore = create<AppState>()(
         const { activeSession, profile } = state;
         if (!activeSession) return;
 
+        // Safety — onboarding must have set this. If not, we refuse to log the
+        // set because XP cannot be computed safely on bodyweight exercises.
+        const bodyweight = profile.preferences.bodyweightKg;
+        if (bodyweight === null) {
+          set({ needsOnboarding: true });
+          return;
+        }
+
         // 1) Append the set to the session
         const added = svcAddSet(activeSession, workoutExerciseId, payload, now);
         if (!added) return;
@@ -328,7 +368,6 @@ export const useAppStore = create<AppState>()(
         }
 
         const playerClass = getPlayerClass(profile.playerClassId);
-        const bodyweight = profile.preferences.bodyweightKg;
 
         // 3) Compute XP breakdown (class multiplier integrated here)
         const breakdown = computeSetXp(
@@ -646,3 +685,5 @@ export const selectPlayerClass = (s: AppState) =>
   getPlayerClass(s.profile.playerClassId);
 export const selectBodyweightKg = (s: AppState) =>
   s.profile.preferences.bodyweightKg;
+export const selectNeedsOnboarding = (s: AppState) => s.needsOnboarding;
+export const selectIsInitialized = (s: AppState) => s.isInitialized;

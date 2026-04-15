@@ -33,6 +33,7 @@ import {
   FAILURE_XP_MULTIPLIER,
   FATIGUE_XP_MULTIPLIER,
   LEVEL_EXPONENT,
+  MAX_CLASS_MULTIPLIER,
   MAX_LEVEL,
   VOLUME_TO_XP_RATIO,
   WARMUP_XP_MULTIPLIER,
@@ -154,6 +155,8 @@ export function matchesClassBonus(
         set.reps >= condition.minReps &&
         set.reps <= condition.maxReps
       );
+    case 'isolation_reps':
+      return exercise.movement === 'isolation' && set.reps >= condition.minReps;
     case 'category':
       return exercise.category === condition.category;
     case 'high_reps':
@@ -166,24 +169,32 @@ export function matchesClassBonus(
 }
 
 /**
- * Compute the product of all applicable class bonus multipliers for one set.
+ * Compute the stacked class bonus multiplier for one set.
  * Multiple bonuses stack multiplicatively (Tank's "Heavy Hitter" ×1.30 AND
- * "Mur d'acier" ×1.10 → ×1.43 when both conditions match).
+ * "Mur d'acier" ×1.10 → ×1.43 when both conditions match), then the product
+ * is clamped to MAX_CLASS_MULTIPLIER to prevent XP economy from exploding.
  */
 export function computeClassMultiplier(
   playerClass: PlayerClass,
   ctx: ClassBonusContext,
-): { multiplier: number; applied: ClassBonus[] } {
-  let multiplier = 1;
+): { multiplier: number; rawMultiplier: number; clamped: boolean; applied: ClassBonus[] } {
+  let rawMultiplier = 1;
   const applied: ClassBonus[] = [];
 
   for (const bonus of playerClass.bonuses) {
     if (matchesClassBonus(bonus.condition, ctx)) {
-      multiplier *= bonus.multiplier;
+      rawMultiplier *= bonus.multiplier;
       applied.push(bonus);
     }
   }
-  return { multiplier, applied };
+
+  const multiplier = Math.min(rawMultiplier, MAX_CLASS_MULTIPLIER);
+  return {
+    multiplier,
+    rawMultiplier,
+    clamped: rawMultiplier > MAX_CLASS_MULTIPLIER,
+    applied,
+  };
 }
 
 // ===========================================================================
@@ -193,7 +204,9 @@ export function computeClassMultiplier(
 export interface SetXpBreakdown {
   volume: number;
   baseXp: number;                          // after all non-status modifiers
-  classMultiplier: number;
+  classMultiplier: number;                 // post-clamp
+  classMultiplierRaw: number;              // pre-clamp — useful for UI "capped" indicator
+  classMultiplierClamped: boolean;
   classBonusesApplied: ClassBonus[];
   perMuscle: Array<{
     muscleId: MuscleGroupId;
@@ -219,10 +232,13 @@ export function computeSetXp(
   const volume = computeSetVolume(set, exercise, userBodyweightKg);
   const setModifier = computeSetModifier(set, exercise);
 
-  const { multiplier: classMultiplier, applied: classBonusesApplied } =
-    computeClassMultiplier(playerClass, { set, exercise, userBodyweightKg });
+  const classCalc = computeClassMultiplier(playerClass, {
+    set,
+    exercise,
+    userBodyweightKg,
+  });
 
-  const baseXp = volume * VOLUME_TO_XP_RATIO * setModifier * classMultiplier;
+  const baseXp = volume * VOLUME_TO_XP_RATIO * setModifier * classCalc.multiplier;
 
   const perMuscle = exercise.muscleInvolvement.map(mi => {
     const statusMod = statusXpMultiplier(muscleStats[mi.muscleId].status);
@@ -242,8 +258,10 @@ export function computeSetXp(
   return {
     volume,
     baseXp,
-    classMultiplier,
-    classBonusesApplied,
+    classMultiplier: classCalc.multiplier,
+    classMultiplierRaw: classCalc.rawMultiplier,
+    classMultiplierClamped: classCalc.clamped,
+    classBonusesApplied: classCalc.applied,
     perMuscle,
     totalXp,
   };
