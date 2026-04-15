@@ -10,10 +10,8 @@ import {
   Shield,
   Shirt,
   Sparkles,
-  Sprout,
   Sword,
   Swords,
-  Target,
   Wind,
   X,
   type LucideIcon,
@@ -45,13 +43,9 @@ import type {
 // ---------------------------------------------------------------------------
 
 const PLAYER_CLASS_ICON: Record<PlayerClassId, LucideIcon> = {
-  novice: Sprout,
-  fighter: Swords,
-  tanker: Shield,
+  guerrier: Swords,
   assassin: Sword,
-  ranger: Target,
-  mage: Sparkles,
-  healer: Heart,
+  tank: Shield,
 };
 
 const SLOT_META: Record<
@@ -108,7 +102,7 @@ export default function ProfileScreen() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [draftName, setDraftName] = useState(profile.nickname);
 
-  const ClassIcon = PLAYER_CLASS_ICON[profile.playerClassId] ?? Sprout;
+  const ClassIcon = PLAYER_CLASS_ICON[profile.playerClassId] ?? Swords;
   const rank = computeRank(profile.level);
   const rankTagline = RANK_INFO[rank].tagline;
   const fatigue = computeGlobalFatigue(profile.muscleStats);
