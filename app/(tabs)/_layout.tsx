@@ -1,11 +1,11 @@
 import { Tabs } from 'expo-router';
-import { ScrollText, User } from 'lucide-react-native';
+import { Backpack, ScrollText, User } from 'lucide-react-native';
 
 /**
  * Tabs layout.
- * - index → Quêtes (home)
- * - profile → Statut
- * Tracker / Templates will land on later passes.
+ * - index     → Quêtes (home)
+ * - inventory → Inventaire
+ * - profile   → Statut
  */
 export default function TabsLayout() {
   return (
@@ -28,6 +28,15 @@ export default function TabsLayout() {
           title: 'Quêtes',
           tabBarIcon: ({ color, size }) => (
             <ScrollText color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="inventory"
+        options={{
+          title: 'Inventaire',
+          tabBarIcon: ({ color, size }) => (
+            <Backpack color={color} size={size} />
           ),
         }}
       />
