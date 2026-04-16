@@ -13,9 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AriseExtraction } from '@/components/AriseExtraction';
 import { GradientBar } from '@/components/GradientBar';
-import { WorldBossBar } from '@/components/WorldBossBar';
 import { CHALLENGES, challengeProgress } from '@/data/challenges';
 import { RANK_META } from '@/data/ranks';
 import {
@@ -124,12 +122,6 @@ export default function QuestsScreen() {
 
           {/* Battle Pass — Season 1: L'Éveil */}
           <SeasonPassBar profile={profile} />
-
-          {/* World Boss — shared HP gauge nudged by every kg lifted */}
-          <WorldBossBar />
-
-          {/* Shadow extraction — "Je m'élève." */}
-          <AriseExtraction />
 
           {/* Start workout CTA — routes to the template picker */}
           <Pressable
