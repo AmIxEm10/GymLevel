@@ -3,19 +3,25 @@ import {
   Crown,
   Flame,
   Gem,
+  Ghost,
   KeyRound,
   Mail,
+  Music,
   Package,
   RefreshCcw,
   ShieldAlert,
+  Skull,
   Sparkles,
   Sword,
   Trash2,
   TrendingUp,
+  Volume2,
   Wand2,
   X,
   Zap,
 } from 'lucide-react-native';
+
+import { playSound, stopSound } from '@/services/soundService';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -55,6 +61,8 @@ export default function AdminConsoleScreen() {
   const adminForceEvolve = useAppStore(s => s.adminForceEvolve);
   const adminBoostPowerLevel = useAppStore(s => s.adminBoostPowerLevel);
   const adminSimulateMessage = useAppStore(s => s.adminSimulateMessage);
+  const adminWeakenWorldBoss = useAppStore(s => s.adminWeakenWorldBoss);
+  const resetWorldBoss = useAppStore(s => s.resetWorldBoss);
 
   const [tab, setTab] = useState<Tab>('xp');
   const [itemMode, setItemMode] = useState<'equipment' | 'consumable'>('consumable');
@@ -197,6 +205,68 @@ export default function AdminConsoleScreen() {
               onPress={() => adminSimulateMessage('ominous')}
               color="#F43F5E"
             />
+
+            <SectionTitle title="Bibliothèque Sonore" />
+            <View className="flex-row" style={{ gap: 8 }}>
+              <AdminBtn
+                label="TEST · ARISE"
+                Icon={Ghost}
+                onPress={() =>
+                  playSound('ARISE_EXTRACTION', { restart: true })
+                }
+                color="#A855F7"
+              />
+              <AdminBtn
+                label="TEST · LEVEL UP"
+                Icon={Sparkles}
+                onPress={() => playSound('LEVEL_UP', { restart: true })}
+                color="#FBBF24"
+              />
+            </View>
+            <View className="flex-row" style={{ gap: 8 }}>
+              <AdminBtn
+                label="TEST · THEME"
+                Icon={Music}
+                onPress={() => playSound('THEME_AMBIENT')}
+                color="#22D3EE"
+              />
+              <AdminBtn
+                label="STOP THEME"
+                Icon={Volume2}
+                onPress={() => stopSound('THEME_AMBIENT')}
+                color="#94A3B8"
+              />
+            </View>
+            <View className="flex-row" style={{ gap: 8 }}>
+              <AdminBtn
+                label="TEST · DUNGEON"
+                Icon={KeyRound}
+                onPress={() => playSound('DUNGEON_START', { restart: true })}
+                color="#10B981"
+              />
+              <AdminBtn
+                label="TEST · ÉVOLUTION"
+                Icon={Crown}
+                onPress={() => playSound('EVOLUTION_THEME', { restart: true })}
+                color="#FB7185"
+              />
+            </View>
+
+            <SectionTitle title="Boss Mondial" />
+            <View className="flex-row" style={{ gap: 8 }}>
+              <AdminBtn
+                label="Affaiblir Boss (HP→100)"
+                Icon={Skull}
+                onPress={adminWeakenWorldBoss}
+                color="#F43F5E"
+              />
+              <AdminBtn
+                label="Reset Boss"
+                Icon={RefreshCcw}
+                onPress={resetWorldBoss}
+                color="#94A3B8"
+              />
+            </View>
 
             <SectionTitle title="Anti-Cheat" />
             <Pressable

@@ -85,6 +85,7 @@ import {
 } from '@/data/workoutTemplates';
 
 import dbHelper from '@/services/database/dbHelper';
+import { playSound, setSoundMuted } from '@/services/soundService';
 import type { Rank } from '@/data/ranks';
 import {
   computeDungeonRank,
@@ -227,6 +228,32 @@ interface AppState {
   /** true while profile.preferences.bodyweightKg is null — UI must route to onboarding. */
   needsOnboarding: boolean;
 
+  // --- Audio (persisted) -------------------------------------------------
+  /** Global SON ON/OFF toggle. Persisted alongside the profile. */
+  isMuted: boolean;
+  setMuted: (muted: boolean) => void;
+  toggleMuted: () => void;
+
+  // --- World Boss (persisted) -------------------------------------------
+  /**
+   * Shared World Boss HP. Each kg of volume logged shaves 1 HP. When HP
+   * reaches 0 the boss respawns with a fresh max HP (1.5× the previous).
+   */
+  worldBossHp: number;
+  worldBossMaxHp: number;
+  worldBossKills: number;
+  /** Apply N damage points (= kg of volume) to the boss. */
+  damageWorldBoss: (damage: number) => void;
+  resetWorldBoss: () => void;
+
+  // --- Shadow extraction (Arise) ----------------------------------------
+  /** Counter — how many shadows have been extracted (lifetime). */
+  shadowExtractionCount: number;
+  /** Last extraction timestamp — drives the cooldown UI. */
+  lastShadowExtractedAt: number | null;
+  /** Trigger the "Extraire l'Ombre" ritual; emits the SFX cue. */
+  extractShadow: () => void;
+
   // --- Lifecycle ----------------------------------------------------------
   initializeApp: () => void;
   resetProfile: () => void;
@@ -319,6 +346,8 @@ interface AppState {
   adminBoostPowerLevel: (amount?: number) => void;
   /** Drop a synthetic system message in the mailbox (test the UI). */
   adminSimulateMessage: (tone?: SystemMessageTone) => void;
+  /** Reset the World Boss to a low HP so it can be killed in test. */
+  adminWeakenWorldBoss: () => void;
 
   // --- Titles / Secret Quests / Challenges -------------------------------
   /** Non-persisted — latest secret quest drop for the modal overlay. */
@@ -366,12 +395,63 @@ export const useAppStore = create<AppState>()(
       lastMuscleRankUp: null,
       antiCheatBypass: false,
 
+      // Audio
+      isMuted: false,
+      setMuted: muted => {
+        setSoundMuted(muted);
+        set({ isMuted: muted });
+      },
+      toggleMuted: () => {
+        const next = !get().isMuted;
+        setSoundMuted(next);
+        set({ isMuted: next });
+      },
+
+      // World Boss
+      worldBossHp: 5000,
+      worldBossMaxHp: 5000,
+      worldBossKills: 0,
+      damageWorldBoss: damage => {
+        const dmg = Math.max(0, Math.round(damage));
+        if (dmg <= 0) return;
+        playSound('IMPACT_METAL');
+        set(s => {
+          const nextHp = s.worldBossHp - dmg;
+          if (nextHp > 0) return { worldBossHp: nextHp };
+          // Kill: respawn with 1.5× HP, increment kill counter.
+          const nextMax = Math.round(s.worldBossMaxHp * 1.5);
+          return {
+            worldBossHp: nextMax,
+            worldBossMaxHp: nextMax,
+            worldBossKills: s.worldBossKills + 1,
+          };
+        });
+      },
+      resetWorldBoss: () => {
+        set({ worldBossHp: 5000, worldBossMaxHp: 5000, worldBossKills: 0 });
+      },
+
+      // Shadow extraction (Arise)
+      shadowExtractionCount: 0,
+      lastShadowExtractedAt: null,
+      extractShadow: () => {
+        playSound('ARISE_EXTRACTION', { restart: true });
+        set(s => ({
+          shadowExtractionCount: s.shadowExtractionCount + 1,
+          lastShadowExtractedAt: Date.now(),
+        }));
+      },
+
       // -------------------------------------------------------------------
       // Lifecycle
       // -------------------------------------------------------------------
       initializeApp: () => {
         const now = Date.now();
-        const { profile: currentProfile } = get();
+        const { profile: currentProfile, isMuted } = get();
+
+        // Push the persisted mute state into the audio engine (the engine
+        // is a singleton and doesn't survive a hot reload otherwise).
+        setSoundMuted(isMuted);
 
         // Fire-and-forget: initialise the local SQLite schema on native
         // platforms. Web / unsupported platforms resolve to a no-op.
@@ -616,6 +696,7 @@ export const useAppStore = create<AppState>()(
           tone: 'evolution',
         };
 
+        playSound('EVOLUTION_THEME', { restart: true });
         set(s => ({
           profile: {
             ...s.profile,
@@ -659,11 +740,13 @@ export const useAppStore = create<AppState>()(
           builtInTemplates.find(t => t.id === templateId);
         if (!template) return;
 
+        playSound('DUNGEON_START', { restart: true });
         set({ activeSession: sessionFromTemplate(template, now) });
       },
 
       startBlankSession: (name = 'Séance libre') => {
         if (get().activeSession) return;
+        playSound('DUNGEON_START', { restart: true });
         set({ activeSession: blankSession(name, Date.now()) });
       },
 
@@ -689,6 +772,7 @@ export const useAppStore = create<AppState>()(
           get().abandonSession();
         }
 
+        playSound('DUNGEON_START', { restart: true });
         // Seed a blank session then append exercises
         let session = blankSession('Donjon Instantané', now);
         for (const ex of picks) {
@@ -959,6 +1043,21 @@ export const useAppStore = create<AppState>()(
           );
         }
 
+        // ---- Audio cues ----------------------------------------------
+        // 1. Player-level up — fire LEVEL_UP once per crossed level.
+        if (nextProfile.level > profile.level) {
+          playSound('LEVEL_UP', { restart: true });
+        } else if (rankUpEvent) {
+          // 2. Muscle rank-up — same cue, slightly softer.
+          playSound('LEVEL_UP', { restart: true, volume: 0.7 });
+        }
+
+        // ---- World Boss damage --------------------------------------
+        // Each kg of working volume shaves 1 HP off the shared boss.
+        if (!newSet.isWarmup && breakdown.volume > 0) {
+          get().damageWorldBoss(breakdown.volume);
+        }
+
         set(s => ({
           activeSession: nextSession,
           profile: nextProfile,
@@ -1075,6 +1174,11 @@ export const useAppStore = create<AppState>()(
           totalWorkouts: profile.totalWorkouts + 1,
           lastWorkoutAt: now,
         };
+
+        // Streak bonus may have crossed a level — replay LEVEL_UP cue.
+        if (nextProfile.level > profile.level) {
+          playSound('LEVEL_UP', { restart: true });
+        }
 
         // Feed streak & duration quests
         let quests = get().activeQuests;
@@ -1806,6 +1910,7 @@ export const useAppStore = create<AppState>()(
           tone: 'evolution',
         };
 
+        playSound('EVOLUTION_THEME', { restart: true });
         set(s => ({
           profile: {
             ...s.profile,
@@ -1813,6 +1918,10 @@ export const useAppStore = create<AppState>()(
             messages: [message, ...(s.profile.messages ?? [])].slice(0, 100),
           },
         }));
+      },
+
+      adminWeakenWorldBoss: () => {
+        set({ worldBossHp: 100 });
       },
 
       adminBoostPowerLevel: (amount = 50000) => {
@@ -1966,6 +2075,12 @@ export const useAppStore = create<AppState>()(
         completedQuests: state.completedQuests,
         lastQuestGenerationAt: state.lastQuestGenerationAt,
         lastDeconditioningResult: state.lastDeconditioningResult,
+        isMuted: state.isMuted,
+        worldBossHp: state.worldBossHp,
+        worldBossMaxHp: state.worldBossMaxHp,
+        worldBossKills: state.worldBossKills,
+        shadowExtractionCount: state.shadowExtractionCount,
+        lastShadowExtractedAt: state.lastShadowExtractedAt,
       }),
       version: 7,
       migrate: (persistedState, version) => {

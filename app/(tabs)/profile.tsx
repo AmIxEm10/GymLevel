@@ -13,11 +13,13 @@ import {
   Sword,
   Swords,
   Target,
+  Volume2,
+  VolumeX,
   Wind,
   X,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -32,6 +34,7 @@ import { RARITY_PALETTE } from '@/components/InventorySlot';
 import { ITEM_SETS, getActiveSets, setProgress } from '@/data/itemSets';
 import { TITLES, getTitle } from '@/data/titles';
 import { calculatePowerLevel } from '@/services/gamificationService';
+import { playSound, stopSound } from '@/services/soundService';
 import {
   selectCanEvolve,
   selectEquipped,
@@ -105,6 +108,14 @@ export default function ProfileScreen() {
   const evolvedClassName = useAppStore(selectEvolvedClassName);
   const canEvolveNow = useAppStore(selectCanEvolve);
   const evolveClass = useAppStore(s => s.evolveClass);
+  const isMuted = useAppStore(s => s.isMuted);
+  const toggleMuted = useAppStore(s => s.toggleMuted);
+
+  // Looping ambient theme — starts when the Profile mounts, stops on unmount.
+  useEffect(() => {
+    playSound('THEME_AMBIENT');
+    return () => stopSound('THEME_AMBIENT');
+  }, []);
 
   const activeTitle = getTitle(profile.activeTitleId);
   const activeSets = useMemo(() => getActiveSets(equipped), [equipped]);
@@ -175,34 +186,54 @@ export default function ProfileScreen() {
             <View className="mt-[2px] h-[1px] w-16 bg-cyan-400/60" />
           </View>
 
-          {/* Boîte aux Lettres — icon with unread pill */}
-          <Pressable
-            onPress={() => router.push('/mailbox')}
-            className="relative rounded-xl border border-blue-500/40 bg-blue-500/10 p-2.5 active:opacity-70"
-            style={{
-              shadowColor: unreadCount > 0 ? '#F43F5E' : '#22D3EE',
-              shadowOpacity: unreadCount > 0 ? 0.9 : 0.4,
-              shadowRadius: 10,
-              shadowOffset: { width: 0, height: 0 },
-            }}
-          >
-            <Mail size={16} color="#BFDBFE" strokeWidth={2} />
-            {unreadCount > 0 ? (
-              <View
-                className="absolute -right-1 -top-1 h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1"
-                style={{
-                  shadowColor: '#F43F5E',
-                  shadowOpacity: 0.9,
-                  shadowRadius: 6,
-                  shadowOffset: { width: 0, height: 0 },
-                }}
-              >
-                <Text className="text-[9px] font-black text-white">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Text>
-              </View>
-            ) : null}
-          </Pressable>
+          <View className="flex-row items-center" style={{ gap: 8 }}>
+            {/* Mute toggle — global SON ON/OFF for the audio engine */}
+            <Pressable
+              onPress={toggleMuted}
+              className="rounded-xl border border-slate-700 bg-white/5 p-2.5 active:opacity-70"
+              style={{
+                shadowColor: isMuted ? 'transparent' : '#22D3EE',
+                shadowOpacity: isMuted ? 0 : 0.4,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 0 },
+              }}
+            >
+              {isMuted ? (
+                <VolumeX size={16} color="#94A3B8" strokeWidth={2} />
+              ) : (
+                <Volume2 size={16} color="#A5F3FC" strokeWidth={2} />
+              )}
+            </Pressable>
+
+            {/* Boîte aux Lettres — icon with unread pill */}
+            <Pressable
+              onPress={() => router.push('/mailbox')}
+              className="relative rounded-xl border border-blue-500/40 bg-blue-500/10 p-2.5 active:opacity-70"
+              style={{
+                shadowColor: unreadCount > 0 ? '#F43F5E' : '#22D3EE',
+                shadowOpacity: unreadCount > 0 ? 0.9 : 0.4,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 0 },
+              }}
+            >
+              <Mail size={16} color="#BFDBFE" strokeWidth={2} />
+              {unreadCount > 0 ? (
+                <View
+                  className="absolute -right-1 -top-1 h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1"
+                  style={{
+                    shadowColor: '#F43F5E',
+                    shadowOpacity: 0.9,
+                    shadowRadius: 6,
+                    shadowOffset: { width: 0, height: 0 },
+                  }}
+                >
+                  <Text className="text-[9px] font-black text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </View>
         </View>
 
         {/* =========================== LEVEL HERO + NICKNAME */}

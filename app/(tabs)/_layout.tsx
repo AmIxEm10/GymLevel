@@ -7,6 +7,8 @@ import {
   User,
 } from 'lucide-react-native';
 
+import { playSound } from '@/services/soundService';
+
 /**
  * Tabs layout.
  * - index     → Quêtes (home)
@@ -14,11 +16,16 @@ import {
  * - muscles   → Muscle Rankings
  * - inventory → Inventaire
  * - profile   → Statut
+ *
+ * Each tab press fires a CLICK_NEON synth blip (or the MP3 if installed).
  */
 export default function TabsLayout() {
   return (
     <Tabs
       initialRouteName="index"
+      screenListeners={{
+        tabPress: () => playSound('CLICK_NEON', { restart: true }),
+      }}
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
