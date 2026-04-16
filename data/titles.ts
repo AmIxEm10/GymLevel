@@ -31,6 +31,7 @@ export const TITLES: readonly Title[] = [
     effectId: 'morning_xp_boost',
     colorHex: '#FBBF24',
     condition: { kind: 'session_ended_before_hour', hour: 7 },
+    category: 'progression',
   },
   {
     id: 'briseur_limites',
@@ -41,6 +42,7 @@ export const TITLES: readonly Title[] = [
     effectId: 'recovery_boost_5',
     colorHex: '#F97316',
     condition: { kind: 'session_prs', minCount: 5 },
+    category: 'feats',
   },
   {
     id: 'ami_muscles',
@@ -51,6 +53,7 @@ export const TITLES: readonly Title[] = [
     effectId: 'fatigue_reduction_10',
     colorHex: '#22D3A4',
     condition: { kind: 'zero_fatigue_sessions', count: 3 },
+    category: 'progression',
   },
 
   // ================================================ V1.2 EXPANSION
@@ -63,6 +66,7 @@ export const TITLES: readonly Title[] = [
     effectId: 'morning_xp_boost',
     colorHex: '#EF4444',
     condition: { kind: 'session_ended_before_hour', hour: 6 },
+    category: 'feats',
   },
   {
     id: 'architecte_fer',
@@ -73,6 +77,7 @@ export const TITLES: readonly Title[] = [
     effectId: 'recovery_boost_5',
     colorHex: '#A855F7',
     condition: { kind: 'session_prs', minCount: 8 },
+    category: 'feats',
   },
   {
     id: 'marathonien',
@@ -83,6 +88,7 @@ export const TITLES: readonly Title[] = [
     effectId: 'recovery_boost_5',
     colorHex: '#10B981',
     condition: { kind: 'session_prs', minCount: 3 },
+    category: 'progression',
   },
   {
     id: 'ame_erante',
@@ -93,6 +99,7 @@ export const TITLES: readonly Title[] = [
     effectId: 'recovery_boost_5',
     colorHex: '#67E8F9',
     condition: { kind: 'session_prs', minCount: 10 },
+    category: 'feats',
   },
   {
     id: 'veilleur_nuit',
@@ -103,6 +110,7 @@ export const TITLES: readonly Title[] = [
     effectId: 'fatigue_reduction_10',
     colorHex: '#6366F1',
     condition: { kind: 'zero_fatigue_sessions', count: 5 },
+    category: 'progression',
   },
   {
     id: 'main_douce',
@@ -113,6 +121,7 @@ export const TITLES: readonly Title[] = [
     effectId: 'fatigue_reduction_10',
     colorHex: '#F472B6',
     condition: { kind: 'zero_fatigue_sessions', count: 7 },
+    category: 'feats',
   },
   {
     id: 'rune_respiration',
@@ -123,6 +132,7 @@ export const TITLES: readonly Title[] = [
     effectId: 'fatigue_reduction_10',
     colorHex: '#60A5FA',
     condition: { kind: 'zero_fatigue_sessions', count: 10 },
+    category: 'legendary',
   },
   {
     id: 'symbiose_parfaite',
@@ -133,6 +143,7 @@ export const TITLES: readonly Title[] = [
     effectId: 'fatigue_reduction_10',
     colorHex: '#E879F9',
     condition: { kind: 'zero_fatigue_sessions', count: 15 },
+    category: 'legendary',
   },
   {
     id: 'barde_silencieux',
@@ -143,6 +154,7 @@ export const TITLES: readonly Title[] = [
     effectId: 'fatigue_reduction_10',
     colorHex: '#FDE68A',
     condition: { kind: 'zero_fatigue_sessions', count: 20 },
+    category: 'legendary',
   },
   {
     id: 'gardien_lune',
@@ -153,7 +165,20 @@ export const TITLES: readonly Title[] = [
     effectId: 'fatigue_reduction_10',
     colorHex: '#C0C0C0',
     condition: { kind: 'zero_fatigue_sessions', count: 30 },
+    category: 'legendary',
   },
+];
+
+/** Ordered list of categories driving the tab picker on the Profile screen. */
+export const TITLE_CATEGORIES: Array<{
+  id: 'progression' | 'feats' | 'legendary';
+  label: string;
+  accent: string;
+  glow: string;
+}> = [
+  { id: 'progression', label: 'Progression', accent: '#22D3EE', glow: '#67E8F9' },
+  { id: 'feats',       label: 'Exploits',    accent: '#F97316', glow: '#FDBA74' },
+  { id: 'legendary',   label: 'Légende',     accent: '#FBBF24', glow: '#FEF3C7' },
 ];
 
 export const TITLES_BY_ID: Record<string, Title> = TITLES.reduce(

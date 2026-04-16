@@ -2,8 +2,10 @@ import {
   Activity,
   Check,
   ChevronRight,
+  Crown,
   Edit2,
   HeartPulse,
+  Lock,
   Mail,
   Ruler,
   Scale,
@@ -30,7 +32,7 @@ import { GrowthChart } from '@/components/GrowthChart';
 import { RANK_INFO, RankEmblem, computeRank } from '@/components/RankEmblem';
 import { RARITY_PALETTE } from '@/components/InventorySlot';
 import { ITEM_SETS, getActiveSets, setProgress } from '@/data/itemSets';
-import { TITLES, getTitle } from '@/data/titles';
+import { TITLES, TITLE_CATEGORIES, getTitle } from '@/data/titles';
 import { calculatePowerLevel } from '@/services/gamificationService';
 import {
   selectCanEvolve,
@@ -43,7 +45,7 @@ import {
   selectUnreadCount,
   useAppStore,
 } from '@/store/useAppStore';
-import type { EquipmentSlot, PlayerClassId } from '@/types';
+import type { EquipmentSlot, PlayerClassId, Title, TitleCategory } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Class icon mapping (3 classes: guerrier / assassin / tank)
@@ -118,6 +120,15 @@ export default function ProfileScreen() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [draftName, setDraftName] = useState(profile.nickname);
   const [bioField, setBioField] = useState<BiometricField | null>(null);
+
+  // Titles tab-picker state + currently-open detail modal.
+  const [activeTitleTab, setActiveTitleTab] =
+    useState<TitleCategory>('progression');
+  const [openTitle, setOpenTitle] = useState<Title | null>(null);
+  const titlesInTab = useMemo(
+    () => TITLES.filter(t => t.category === activeTitleTab),
+    [activeTitleTab],
+  );
 
   const ClassIcon = PLAYER_CLASS_ICON[profile.playerClassId] ?? Swords;
   const rank = computeRank(profile.level);
@@ -572,66 +583,71 @@ export default function ProfileScreen() {
             title="Titres Débloqués"
             subtitle={`${profile.unlockedTitles.length} / ${TITLES.length}`}
           />
-          <View className="mt-3 gap-2">
-            {TITLES.map(t => {
-              const unlocked = profile.unlockedTitles.includes(t.id);
-              const isActive = profile.activeTitleId === t.id;
+
+          {/* Pill tab picker — [Progression | Exploits | Légende] */}
+          <View
+            className="mt-3 flex-row rounded-full border border-blue-500/30 bg-white/[0.03] p-1"
+            style={{ gap: 6 }}
+          >
+            {TITLE_CATEGORIES.map(cat => {
+              const active = activeTitleTab === cat.id;
               return (
                 <Pressable
-                  key={t.id}
-                  onPress={() =>
-                    unlocked && setActiveTitle(isActive ? null : t.id)
-                  }
-                  className="rounded-2xl border p-3 active:opacity-70"
+                  key={cat.id}
+                  onPress={() => setActiveTitleTab(cat.id)}
+                  className="flex-1 items-center justify-center rounded-full py-2 active:opacity-70"
                   style={{
-                    borderColor: unlocked ? t.colorHex : '#1e293b',
-                    backgroundColor: isActive
-                      ? 'rgba(255,255,255,0.05)'
-                      : 'rgba(255,255,255,0.02)',
-                    shadowColor: isActive ? t.colorHex : 'transparent',
-                    shadowOpacity: isActive ? 0.85 : 0,
-                    shadowRadius: isActive ? 14 : 0,
+                    backgroundColor: active ? `${cat.accent}28` : 'transparent',
+                    borderWidth: active ? 1 : 0,
+                    borderColor: cat.accent,
+                    shadowColor: active ? cat.accent : 'transparent',
+                    shadowOpacity: active ? 0.7 : 0,
+                    shadowRadius: active ? 10 : 0,
                     shadowOffset: { width: 0, height: 0 },
-                    opacity: unlocked ? 1 : 0.55,
                   }}
                 >
-                  <View className="flex-row items-center justify-between">
-                    <Text
-                      className="text-sm font-black tracking-wider"
-                      style={{
-                        color: unlocked ? t.colorHex : '#475569',
-                        textShadowColor:
-                          isActive ? t.colorHex : 'transparent',
-                        textShadowRadius: isActive ? 10 : 0,
-                      }}
-                    >
-                      {t.name.toUpperCase()}
-                    </Text>
-                    {isActive ? (
-                      <Text
-                        className="rounded-md border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[3px]"
-                        style={{ borderColor: t.colorHex, color: t.colorHex }}
-                      >
-                        Actif
-                      </Text>
-                    ) : null}
-                  </View>
-                  <Text className="mt-0.5 text-[11px] italic text-slate-500">
-                    « {t.description} »
-                  </Text>
-                  <Text className="mt-1 text-[10px] text-slate-400">
-                    <Text
-                      className="font-bold"
-                      style={{ color: unlocked ? t.colorHex : '#64748B' }}
-                    >
-                      {unlocked ? 'Effet : ' : 'Condition : '}
-                    </Text>
-                    {unlocked ? t.effectDescription : t.unlockHint}
+                  <Text
+                    className="text-center text-[10px] font-black uppercase"
+                    numberOfLines={1}
+                    style={{
+                      color: active ? cat.glow : '#64748B',
+                      letterSpacing: 1.2,
+                      textShadowColor: active ? cat.accent : 'transparent',
+                      textShadowRadius: active ? 8 : 0,
+                    }}
+                  >
+                    {cat.label}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
+
+          {/* 2-column grid of compact title badges */}
+          <View className="mt-3 flex-row flex-wrap">
+            {titlesInTab.map(t => {
+              const unlocked = profile.unlockedTitles.includes(t.id);
+              const isActive = profile.activeTitleId === t.id;
+              return (
+                <View key={t.id} className="w-1/2 p-1">
+                  <TitleBadge
+                    title={t}
+                    unlocked={unlocked}
+                    isActive={isActive}
+                    onPress={() => setOpenTitle(t)}
+                  />
+                </View>
+              );
+            })}
+          </View>
+
+          {titlesInTab.length === 0 ? (
+            <View className="mt-4 items-center rounded-2xl border border-dashed border-slate-700 bg-white/[0.02] p-6">
+              <Text className="text-center text-[11px] italic text-slate-500">
+                Cette catégorie attend tes exploits, chasseur.
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {/* ================================================== ADMIN CTA */}
@@ -673,6 +689,19 @@ export default function ProfileScreen() {
       </ScrollView>
 
       <BiometricModal field={bioField} onClose={() => setBioField(null)} />
+
+      {/* Title detail overlay — shown when a badge is tapped */}
+      <TitleDetailModal
+        title={openTitle}
+        unlocked={openTitle ? profile.unlockedTitles.includes(openTitle.id) : false}
+        isActive={openTitle ? profile.activeTitleId === openTitle.id : false}
+        onEquip={id => {
+          setActiveTitle(
+            profile.activeTitleId === id ? null : id,
+          );
+        }}
+        onClose={() => setOpenTitle(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -738,6 +767,225 @@ function EquipmentSlotMini({
       >
         {item.name}
       </Text>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Title badge (compact, 2-column grid cell)
+// ---------------------------------------------------------------------------
+
+function TitleBadge({
+  title,
+  unlocked,
+  isActive,
+  onPress,
+}: {
+  title: Title;
+  unlocked: boolean;
+  isActive: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className="items-center rounded-2xl border p-3 active:opacity-70"
+      style={{
+        borderColor: unlocked ? title.colorHex : '#1e293b',
+        backgroundColor: isActive
+          ? `${title.colorHex}18`
+          : 'rgba(255,255,255,0.02)',
+        shadowColor: isActive ? title.colorHex : 'transparent',
+        shadowOpacity: isActive ? 0.85 : 0,
+        shadowRadius: isActive ? 12 : 0,
+        shadowOffset: { width: 0, height: 0 },
+        opacity: unlocked ? 1 : 0.55,
+        minHeight: 86,
+      }}
+    >
+      {/* Icon disc — shows a crown when unlocked, a lock when not */}
+      <View
+        className="h-9 w-9 items-center justify-center rounded-full"
+        style={{
+          borderWidth: 1.25,
+          borderColor: unlocked ? title.colorHex : '#334155',
+          backgroundColor: unlocked
+            ? `${title.colorHex}22`
+            : 'rgba(255,255,255,0.02)',
+        }}
+      >
+        {unlocked ? (
+          <Crown size={16} color={title.colorHex} strokeWidth={2} />
+        ) : (
+          <Lock size={14} color="#475569" strokeWidth={2} />
+        )}
+      </View>
+
+      {/* Name — one line, scales down on overflow */}
+      <Text
+        numberOfLines={2}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+        className="mt-2 text-center text-[10px] font-black uppercase tracking-widest"
+        style={{
+          color: unlocked ? title.colorHex : '#64748B',
+          textShadowColor: isActive ? title.colorHex : 'transparent',
+          textShadowRadius: isActive ? 8 : 0,
+        }}
+      >
+        {title.name}
+      </Text>
+
+      {/* "Actif" pill shown only on the equipped title */}
+      {isActive ? (
+        <Text
+          className="mt-1 rounded-md border px-1.5 py-[1px] text-[8px] font-black uppercase tracking-[3px]"
+          style={{ borderColor: title.colorHex, color: title.colorHex }}
+        >
+          Actif
+        </Text>
+      ) : null}
+    </Pressable>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Title detail modal — opens on badge tap, shows description + bonus + equip CTA
+// ---------------------------------------------------------------------------
+
+function TitleDetailModal({
+  title,
+  unlocked,
+  isActive,
+  onEquip,
+  onClose,
+}: {
+  title: Title | null;
+  unlocked: boolean;
+  isActive: boolean;
+  onEquip: (id: string) => void;
+  onClose: () => void;
+}) {
+  if (!title) return null;
+
+  return (
+    <View
+      pointerEvents="auto"
+      className="absolute inset-0"
+      style={{
+        backgroundColor: 'rgba(2,6,23,0.85)',
+        justifyContent: 'center',
+        padding: 24,
+      }}
+    >
+      <Pressable onPress={onClose} className="absolute inset-0" />
+      <View
+        className="rounded-2xl border bg-slate-950/95 p-5"
+        style={{
+          borderColor: title.colorHex,
+          shadowColor: title.colorHex,
+          shadowOpacity: 0.9,
+          shadowRadius: 20,
+          shadowOffset: { width: 0, height: 0 },
+        }}
+      >
+        {/* Close button */}
+        <Pressable
+          onPress={onClose}
+          className="absolute right-3 top-3 rounded-lg border border-slate-700 bg-white/5 p-1.5 active:opacity-60"
+        >
+          <X size={12} color="#94A3B8" />
+        </Pressable>
+
+        {/* Header */}
+        <View className="items-center">
+          <View
+            className="h-14 w-14 items-center justify-center rounded-full"
+            style={{
+              borderWidth: 1.5,
+              borderColor: title.colorHex,
+              backgroundColor: `${title.colorHex}22`,
+            }}
+          >
+            {unlocked ? (
+              <Crown size={24} color={title.colorHex} strokeWidth={2} />
+            ) : (
+              <Lock size={20} color="#64748B" strokeWidth={2} />
+            )}
+          </View>
+          <Text
+            className="mt-3 text-center text-lg font-black uppercase tracking-[3px]"
+            style={{
+              color: unlocked ? title.colorHex : '#94A3B8',
+              textShadowColor: title.colorHex,
+              textShadowRadius: unlocked ? 12 : 0,
+            }}
+          >
+            {title.name}
+          </Text>
+          <View
+            className="mt-2 h-[1px] w-16"
+            style={{ backgroundColor: title.colorHex }}
+          />
+        </View>
+
+        {/* Body */}
+        <Text
+          className="mt-3 text-center text-[12px] italic leading-5 text-slate-300"
+        >
+          « {title.description} »
+        </Text>
+
+        <View
+          className="mt-4 rounded-xl border p-3"
+          style={{
+            borderColor: unlocked ? title.colorHex : '#334155',
+            backgroundColor: unlocked
+              ? `${title.colorHex}12`
+              : 'rgba(255,255,255,0.02)',
+          }}
+        >
+          <Text
+            className="text-[9px] font-black uppercase tracking-[3px]"
+            style={{
+              color: unlocked ? title.colorHex : '#64748B',
+            }}
+          >
+            {unlocked ? 'Bonus actif' : 'Condition'}
+          </Text>
+          <Text className="mt-1 text-[11px] leading-5 text-slate-300">
+            {unlocked ? title.effectDescription : title.unlockHint}
+          </Text>
+        </View>
+
+        {/* Equip / unequip CTA — only when unlocked */}
+        {unlocked ? (
+          <Pressable
+            onPress={() => {
+              onEquip(title.id);
+              onClose();
+            }}
+            className="mt-4 items-center justify-center rounded-xl border-2 py-2.5 active:opacity-70"
+            style={{
+              borderColor: title.colorHex,
+              backgroundColor: isActive
+                ? 'rgba(255,255,255,0.04)'
+                : `${title.colorHex}22`,
+            }}
+          >
+            <Text
+              className="text-[11px] font-black uppercase tracking-[4px]"
+              style={{
+                color: title.colorHex,
+                textShadowColor: title.colorHex,
+                textShadowRadius: 8,
+              }}
+            >
+              {isActive ? 'Retirer le titre' : 'Équiper le titre'}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }

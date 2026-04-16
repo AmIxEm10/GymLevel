@@ -710,6 +710,9 @@ export type TitleUnlockCondition =
   | { kind: 'session_prs'; minCount: number }
   | { kind: 'zero_fatigue_sessions'; count: number };
 
+/** High-level bucket used by the Titles tab picker on the Profile. */
+export type TitleCategory = 'progression' | 'feats' | 'legendary';
+
 export interface Title {
   id: string;
   name: string;
@@ -720,6 +723,8 @@ export interface Title {
   /** Neon colour used when the title is shown under the nickname. */
   colorHex: string;
   condition: TitleUnlockCondition;
+  /** UI bucket — drives the three-tab picker on the Profile screen. */
+  category: TitleCategory;
 }
 
 /** Trigger that fires a Secret Quest. */
