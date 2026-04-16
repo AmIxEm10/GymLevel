@@ -4,34 +4,40 @@ import type { ConsumableItem, ConsumableTemplate } from '@/types';
  * Catalog of consumable templates. Instances are minted via mintConsumable()
  * and stored in profile.inventory.consumables. The store's consumeItem()
  * action applies the effect and removes the instance.
+ *
+ * V2 — aligned with the Admin Console spec:
+ *   ELIXIR_FATIGUE    → subtracts 30 % of every muscle's 24 h volume
+ *   KEY_S_RANK        → flags the next session as a Rank-S dungeon
+ *   SCROLL_DOUBLE_XP  → ×2 global XP for 60 minutes
  */
 export const CONSUMABLE_TEMPLATES: readonly ConsumableTemplate[] = [
   {
-    id: 'health_elixir',
-    name: 'Élixir de Santé',
+    id: 'ELIXIR_FATIGUE',
+    name: 'Élixir de Récupération',
     description:
-      "Fiole lumineuse du Système. Soulage les muscles les plus fatigués en un instant.",
+      "Fiole scintillante du Système. Évapore 30 % de ta fatigue musculaire instantanément.",
     icon: 'flask',
     rarity: 'rare',
     subtype: 'elixir',
-    effect: { kind: 'reduce_fatigue', percent: 20 },
+    effect: { kind: 'reduce_volume24h', percent: 30 },
   },
   {
-    id: 'power_scroll',
-    name: 'Parchemin de Puissance',
+    id: 'SCROLL_DOUBLE_XP',
+    name: 'Parchemin de Double XP',
     description:
-      "Parchemin scellé du Système. Transmet un fragment d'énergie arcanique au porteur.",
+      "Sceau arcanique. Double ton XP pour les 60 prochaines minutes d'entraînement.",
     icon: 'sparkles',
     rarity: 'epic',
     subtype: 'scroll',
-    effect: { kind: 'instant_xp', amount: 500 },
+    effect: { kind: 'xp_boost_timed', multiplier: 2, durationSec: 60 * 60 },
   },
   {
-    id: 'dungeon_key_basic',
-    name: 'Clé de Donjon (Basic)',
-    description: 'Clé délivrée par un Chasseur rang E. Permet d\'ouvrir une porte instable.',
+    id: 'KEY_S_RANK',
+    name: 'Clé de Donjon · Rang S',
+    description:
+      'Clé runique scellée. La prochaine séance devient un donjon de rang S — loot garanti au plus haut palier.',
     icon: 'key',
-    rarity: 'common',
+    rarity: 'legendary',
     subtype: 'key',
     effect: { kind: 'unlock_dungeon' },
   },
@@ -39,7 +45,7 @@ export const CONSUMABLE_TEMPLATES: readonly ConsumableTemplate[] = [
     id: 'monarch_heart',
     name: 'Cœur du Monarque',
     description:
-      "Relique légendaire. Ramène tous les muscles à l'état frais.",
+      'Relique légendaire. Ramène tous les muscles à l\'état frais.',
     icon: 'gem',
     rarity: 'legendary',
     subtype: 'relic',
@@ -72,11 +78,13 @@ export function mintConsumable(
   };
 }
 
-/** Fresh-profile starter pack — gives the user 2 elixirs + 1 key. */
+/** Fresh-profile starter pack — gives the user 2 elixirs + 1 S-rank key. */
 export function createStarterConsumables(now: number): ConsumableItem[] {
+  const elx = CONSUMABLE_TEMPLATES_BY_ID.ELIXIR_FATIGUE!;
+  const key = CONSUMABLE_TEMPLATES_BY_ID.KEY_S_RANK!;
   return [
-    mintConsumable(CONSUMABLE_TEMPLATES_BY_ID.health_elixir!, now),
-    mintConsumable(CONSUMABLE_TEMPLATES_BY_ID.health_elixir!, now + 1),
-    mintConsumable(CONSUMABLE_TEMPLATES_BY_ID.dungeon_key_basic!, now + 2),
+    mintConsumable(elx, now),
+    mintConsumable(elx, now + 1),
+    mintConsumable(key, now + 2),
   ];
 }

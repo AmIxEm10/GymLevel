@@ -19,6 +19,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { router } from 'expo-router';
 import { BiometricModal, type BiometricField } from '@/components/BiometricModal';
 import { BodyView } from '@/components/BodyView';
 import { FatigueBar, computeGlobalFatigue } from '@/components/FatigueBar';
@@ -31,6 +32,7 @@ import { TITLES, getTitle } from '@/data/titles';
 import { calculatePowerLevel } from '@/services/gamificationService';
 import {
   selectEquipped,
+  selectIsAdmin,
   selectPlayerClass,
   selectProfile,
   useAppStore,
@@ -62,6 +64,7 @@ export default function ProfileScreen() {
   const history = useAppStore(s => s.workoutHistory);
   const updateNickname = useAppStore(s => s.updateNickname);
   const setActiveTitle = useAppStore(s => s.setActiveTitle);
+  const isAdmin = useAppStore(selectIsAdmin);
 
   const activeTitle = getTitle(profile.activeTitleId);
   const activeSets = useMemo(() => getActiveSets(equipped), [equipped]);
@@ -480,6 +483,32 @@ export default function ProfileScreen() {
             })}
           </View>
         </View>
+
+        {/* ================================================== ADMIN CTA */}
+        {isAdmin ? (
+          <View className="px-5 pt-6">
+            <Pressable
+              onPress={() => router.push('/admin/console')}
+              className="flex-row items-center justify-center rounded-2xl border border-rose-500/60 bg-rose-500/10 py-3 active:opacity-70"
+              style={{
+                shadowColor: '#F43F5E',
+                shadowOpacity: 0.6,
+                shadowRadius: 14,
+                shadowOffset: { width: 0, height: 0 },
+              }}
+            >
+              <Text
+                className="text-[10px] font-black uppercase tracking-[4px] text-rose-200"
+                style={{ textShadowColor: '#F43F5E', textShadowRadius: 8 }}
+              >
+                ⚙ Console Système
+              </Text>
+            </Pressable>
+            <Text className="mt-1.5 text-center text-[9px] italic text-slate-600">
+              Accès privilégié · Maxime uniquement
+            </Text>
+          </View>
+        ) : null}
 
         {/* ================================================== GROWTH CHART */}
         <View className="px-5 pb-8 pt-8">

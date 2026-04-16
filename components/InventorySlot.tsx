@@ -97,11 +97,16 @@ export function InventorySlot({ item, onPress, emptyIcon }: SlotProps) {
       onPress={onPress}
       className="aspect-square rounded-xl bg-slate-900/80 p-2 active:opacity-75"
       style={{
-        borderWidth: 1.5,
-        borderColor: palette.border,
-        shadowColor: palette.glow,
-        shadowOpacity: item.rarity === 'legendary' ? 0.95 : 0.55,
-        shadowRadius: item.rarity === 'legendary' ? 16 : 10,
+        borderWidth: item.kind === 'consumable' ? 2 : 1.5,
+        // Consumables get a distinct golden border to stand apart from gear.
+        borderColor: item.kind === 'consumable' ? '#FBBF24' : palette.border,
+        shadowColor: item.kind === 'consumable' ? '#FBBF24' : palette.glow,
+        shadowOpacity:
+          item.kind === 'consumable' ? 0.9 :
+          item.rarity === 'legendary' ? 0.95 : 0.55,
+        shadowRadius:
+          item.kind === 'consumable' ? 14 :
+          item.rarity === 'legendary' ? 16 : 10,
         shadowOffset: { width: 0, height: 0 },
         // Subtle inner tint (react-native-web supports a linear-gradient
         // via inlineStyle, but to stay cross-platform we just use a flat

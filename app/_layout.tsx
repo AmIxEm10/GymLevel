@@ -55,6 +55,7 @@ export default function RootLayout() {
           <Stack.Screen name="workout/selection" />
           <Stack.Screen name="workout/active" />
           <Stack.Screen name="workout/recap" />
+          <Stack.Screen name="admin/console" />
         </Stack>
 
         {/* Global overlays */}

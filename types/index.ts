@@ -459,10 +459,14 @@ export interface Inventory {
 export type ConsumableEffect =
   /** Reduce the global fatigue by `percent` (0..100). One-shot. */
   | { kind: 'reduce_fatigue'; percent: number }
+  /** Subtract `percent` % from every muscle's volumeLast24h — fast recovery. */
+  | { kind: 'reduce_volume24h'; percent: number }
   /** Flat XP grant on the global counter. */
   | { kind: 'instant_xp'; amount: number }
-  /** Unlocks a special quest / dungeon later in the roadmap. */
-  | { kind: 'unlock_dungeon' };
+  /** Next session starts as a Rank-S dungeon. */
+  | { kind: 'unlock_dungeon' }
+  /** Time-boxed global XP multiplier (e.g. ×2 for 60 min). */
+  | { kind: 'xp_boost_timed'; multiplier: number; durationSec: number };
 
 export type ConsumableSubtype = 'elixir' | 'scroll' | 'key' | 'relic';
 
@@ -590,6 +594,13 @@ export interface UserProfile {
 
   /** Active buffs from consumables. */
   buffs: ProfileBuffs;
+
+  /** Epoch ms — while > now, every set earns xpBoostMultiplier× XP. */
+  xpBoostUntil?: number;
+  xpBoostMultiplier?: number;
+
+  /** Next dungeon loot roll is forced to rank S when this is true. */
+  bossInstanceActive?: boolean;
 
   /** Owned + currently equipped loot. */
   inventory: Inventory;

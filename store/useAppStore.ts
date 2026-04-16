@@ -272,9 +272,24 @@ interface AppState {
 
   // --- Consumables --------------------------------------------------------
   consumeItem: (itemId: string) => void;
+  /** Alias for parity with the spec's naming — delegates to consumeItem. */
+  useConsumable: (itemId: string) => void;
   /** Non-persisted — recent consumed item, for a confirmation toast. */
   lastConsumed: ConsumableItem | null;
   dismissLastConsumed: () => void;
+
+  // --- Admin (Maxime only) -----------------------------------------------
+  /** Runtime flag — when true, simulationDetected / densityWarning are never set. */
+  antiCheatBypass: boolean;
+  adminGrantXp: (amount: number) => void;
+  adminResetFatigue: () => void;
+  adminAddConsumable: (templateId: string, quantity: number) => void;
+  adminAddEquipment: (templateId: string, quantity: number) => void;
+  adminUnlockTitle: (titleId: string) => void;
+  adminMuscleLevelUp: () => void;
+  adminMuscleLevelDown: () => void;
+  adminResetInventoryAndTitles: () => void;
+  adminToggleAntiCheat: () => void;
 
   // --- Titles / Secret Quests / Challenges -------------------------------
   /** Non-persisted — latest secret quest drop for the modal overlay. */
@@ -320,6 +335,7 @@ export const useAppStore = create<AppState>()(
       lastConsumed: null,
       lastSecretQuest: null,
       lastMuscleRankUp: null,
+      antiCheatBypass: false,
 
       // -------------------------------------------------------------------
       // Lifecycle
@@ -636,7 +652,14 @@ export const useAppStore = create<AppState>()(
         // Cap the stacked set bonus (prevents runaway panoplies).
         setMult = Math.min(setMult, MAX_SET_MULTIPLIER);
 
-        const extraMult = titleMult * setMult;
+        // Admin-free timed XP boost (SCROLL_DOUBLE_XP) applied on top of
+        // class / equipment / set multipliers while the window is open.
+        let boostMult = 1.0;
+        const boostUntil = profile.xpBoostUntil ?? 0;
+        const boostCoef = profile.xpBoostMultiplier ?? 1;
+        if (boostUntil > now && boostCoef > 1) boostMult = boostCoef;
+
+        const extraMult = titleMult * setMult * boostMult;
         if (extraMult !== 1.0) {
           breakdown.baseXp *= extraMult;
           breakdown.totalXp *= extraMult;
@@ -870,10 +893,13 @@ export const useAppStore = create<AppState>()(
             : 0;
         const densityWarning = densityKgPerMin > densityThreshold;
 
+        // Admin bypass — if flipped on via the console, we never flag
+        // sessions as cheating.
+        const bypass = get().antiCheatBypass === true;
         const finalized = {
           ...baseFinalized,
-          simulationDetected,
-          densityWarning,
+          simulationDetected: bypass ? false : simulationDetected,
+          densityWarning: bypass ? false : densityWarning,
           workingTimeSeconds,
         };
 
@@ -960,10 +986,12 @@ export const useAppStore = create<AppState>()(
               BUILT_IN_TEMPLATES_BY_ID[tid] ??
               get().customTemplates.find(t => t.id === tid);
           }
-          // Fallback rank for instant dungeons (no template): use C
-          const dungeonRank: Rank = template
+          // Fallback rank for instant dungeons (no template): use C.
+          // If a KEY_S_RANK was consumed, force the next loot roll to S.
+          const rawRank: Rank = template
             ? computeDungeonRank(template)
             : 'C';
+          const dungeonRank: Rank = profile.bossInstanceActive ? 'S' : rawRank;
           // Set-bonus loot multiplier ("Illusionniste" → ×1.25)
           let setLootLuck = 1.0;
           for (const set of getActiveSets(profile.inventory.equipped)) {
@@ -988,6 +1016,10 @@ export const useAppStore = create<AppState>()(
               },
             }
           : nextProfile;
+        // Consume the S-Rank key flag regardless of the roll outcome.
+        if (profileWithLoot.bossInstanceActive) {
+          profileWithLoot = { ...profileWithLoot, bossInstanceActive: false };
+        }
 
         // --- Secret quests: session-level trigger ----------------------
         const alreadyFired = new Set([
@@ -1399,6 +1431,22 @@ export const useAppStore = create<AppState>()(
               profile = { ...profile, muscleStats: nextMuscleStats };
               break;
             }
+            case 'reduce_volume24h': {
+              // Fast recovery — subtract `percent` % from every muscle's
+              // 24 h rolling volume. Status recomputes on next refresh.
+              const f = item.effect.percent / 100;
+              const nextMuscleStats = { ...profile.muscleStats };
+              for (const id of ALL_MUSCLE_IDS) {
+                const stats = nextMuscleStats[id];
+                nextMuscleStats[id] = {
+                  ...stats,
+                  volumeLast24h: Math.max(0, stats.volumeLast24h * (1 - f)),
+                  statusUntil: null,
+                };
+              }
+              profile = { ...profile, muscleStats: nextMuscleStats };
+              break;
+            }
             case 'instant_xp': {
               const g = applyXpToLevel(
                 profile.level,
@@ -1413,8 +1461,19 @@ export const useAppStore = create<AppState>()(
               };
               break;
             }
+            case 'xp_boost_timed': {
+              // Next `durationSec` seconds: every set earns ×multiplier XP.
+              const now2 = Date.now();
+              profile = {
+                ...profile,
+                xpBoostUntil: now2 + item.effect.durationSec * 1000,
+                xpBoostMultiplier: item.effect.multiplier,
+              };
+              break;
+            }
             case 'unlock_dungeon':
-              // Placeholder — will be wired to a scripted dungeon later.
+              // Next session becomes a Rank-S dungeon.
+              profile = { ...profile, bossInstanceActive: true };
               break;
           }
 
@@ -1435,6 +1494,161 @@ export const useAppStore = create<AppState>()(
 
       dismissLastConsumed: () => {
         set({ lastConsumed: null });
+      },
+
+      useConsumable: itemId => {
+        // Alias used by the UI / admin console.
+        get().consumeItem(itemId);
+      },
+
+      // -------------------------------------------------------------------
+      // Admin (only effective when profile.nickname === 'Maxime')
+      // -------------------------------------------------------------------
+      adminGrantXp: amount => {
+        set(s => {
+          const g = applyXpToLevel(s.profile.level, s.profile.totalXp, amount);
+          return {
+            profile: {
+              ...s.profile,
+              totalXp: g.xp,
+              level: g.level,
+              xpToNextLevel: g.xpToNextLevel,
+            },
+          };
+        });
+      },
+
+      adminResetFatigue: () => {
+        set(s => {
+          const nextStats = { ...s.profile.muscleStats };
+          for (const id of ALL_MUSCLE_IDS) {
+            nextStats[id] = {
+              ...nextStats[id],
+              volumeLast24h: 0,
+              status: 'frais',
+              statusUntil: null,
+            };
+          }
+          return { profile: { ...s.profile, muscleStats: nextStats } };
+        });
+      },
+
+      adminAddConsumable: (templateId, quantity) => {
+        const tpl = CONSUMABLE_TEMPLATES_BY_ID[templateId];
+        if (!tpl) return;
+        const now = Date.now();
+        set(s => {
+          const minted = Array.from({ length: Math.max(1, quantity) }).map(
+            (_, i) => mintConsumable(tpl, now + i),
+          );
+          return {
+            profile: {
+              ...s.profile,
+              inventory: {
+                ...s.profile.inventory,
+                consumables: [...s.profile.inventory.consumables, ...minted],
+              },
+            },
+          };
+        });
+      },
+
+      adminAddEquipment: (templateId, quantity) => {
+        const now = Date.now();
+        set(s => {
+          // Lazy require to avoid circular dep on the big ITEM_TEMPLATES map.
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { ITEM_TEMPLATES_BY_ID } = require('@/data/equipment');
+          const tpl = ITEM_TEMPLATES_BY_ID[templateId];
+          if (!tpl) return s;
+          const minted = Array.from({ length: Math.max(1, quantity) }).map(
+            (_, i) => mintItem(tpl, now + i, 'admin'),
+          );
+          return {
+            profile: {
+              ...s.profile,
+              inventory: {
+                ...s.profile.inventory,
+                equipment: [...minted, ...s.profile.inventory.equipment],
+              },
+            },
+          };
+        });
+      },
+
+      adminUnlockTitle: titleId => {
+        set(s => {
+          if (s.profile.unlockedTitles.includes(titleId)) return s;
+          return {
+            profile: {
+              ...s.profile,
+              unlockedTitles: [...s.profile.unlockedTitles, titleId],
+            },
+          };
+        });
+      },
+
+      adminMuscleLevelUp: () => {
+        // Bump every muscle's XP to the next tier threshold.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { MUSCLE_TIER_XP, TIER_ORDER, getMuscleTier } = require('@/data/muscleTiers');
+        set(s => {
+          const nextStats = { ...s.profile.muscleStats };
+          for (const id of ALL_MUSCLE_IDS) {
+            const stats = nextStats[id];
+            const current = getMuscleTier(stats.xp);
+            const idx = TIER_ORDER.indexOf(current);
+            const next = TIER_ORDER[Math.min(TIER_ORDER.length - 1, idx + 1)];
+            const target = MUSCLE_TIER_XP[next];
+            nextStats[id] = { ...stats, xp: target };
+          }
+          return { profile: { ...s.profile, muscleStats: nextStats } };
+        });
+      },
+
+      adminMuscleLevelDown: () => {
+        // Step every muscle down to the previous tier threshold.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { MUSCLE_TIER_XP, TIER_ORDER, getMuscleTier } = require('@/data/muscleTiers');
+        set(s => {
+          const nextStats = { ...s.profile.muscleStats };
+          for (const id of ALL_MUSCLE_IDS) {
+            const stats = nextStats[id];
+            const current = getMuscleTier(stats.xp);
+            const idx = TIER_ORDER.indexOf(current);
+            const prev = TIER_ORDER[Math.max(0, idx - 1)];
+            const target = MUSCLE_TIER_XP[prev];
+            nextStats[id] = { ...stats, xp: target };
+          }
+          return { profile: { ...s.profile, muscleStats: nextStats } };
+        });
+      },
+
+      adminResetInventoryAndTitles: () => {
+        set(s => ({
+          profile: {
+            ...s.profile,
+            inventory: {
+              ...s.profile.inventory,
+              equipment: [],
+              equipped: {
+                head: null,
+                body: null,
+                weapon: null,
+                accessory: null,
+              },
+              consumables: [],
+            },
+            unlockedTitles: [],
+            activeTitleId: null,
+            completedSecretQuests: [],
+            completedChallenges: [],
+          },
+        }));
+      },
+
+      adminToggleAntiCheat: () => {
+        set(s => ({ antiCheatBypass: !s.antiCheatBypass }));
       },
 
       // -------------------------------------------------------------------
@@ -1653,6 +1867,14 @@ export const selectAllTemplates = (s: AppState) => [
   ...s.customTemplates,
 ];
 export const selectActiveQuests = (s: AppState) => s.activeQuests;
+/**
+ * Admin gate — strictly tied to the nickname "Maxime" (case-insensitive,
+ * trimmed). When true, the Profile screen shows the CONSOLE SYSTÈME
+ * button and `/admin/console` becomes accessible.
+ */
+export const selectIsAdmin = (s: AppState) =>
+  (s.profile.nickname ?? '').trim().toLowerCase() === 'maxime';
+
 export const selectPlayerClass = (s: AppState) =>
   getPlayerClass(s.profile.playerClassId);
 export const selectBodyweightKg = (s: AppState) =>
