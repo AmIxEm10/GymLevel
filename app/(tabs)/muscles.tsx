@@ -11,24 +11,33 @@ import {
 import {
   TIER_FAMILIES,
   TIER_META,
+  TIER_ORDER,
   getMuscleTier,
-  getOverallTier,
   progressWithinTier,
+  tierRankIndex,
+  type MuscleTier,
 } from '@/data/muscleTiers';
 import { selectProfile, useAppStore } from '@/store/useAppStore';
 import type { BodyPart, MuscleGroupId } from '@/types';
 
 // ---------------------------------------------------------------------------
-// Filter chips
+// Filter definitions — single source of truth. Each row carries its own
+// `bodyParts` array so the filter logic stays trivial + case-safe.
 // ---------------------------------------------------------------------------
 
 type Filter = 'all' | 'upper' | 'lower' | 'core';
 
-const FILTERS: Array<{ id: Filter; label: string; bodyParts?: BodyPart[] }> = [
-  { id: 'all',   label: 'All' },
-  { id: 'upper', label: 'Upper' },
-  { id: 'lower', label: 'Lower' },
-  { id: 'core',  label: 'Core'  },
+interface FilterDef {
+  id: Filter;
+  label: string;
+  bodyParts: BodyPart[] | null; // null = no filter (All)
+}
+
+const FILTERS: readonly FilterDef[] = [
+  { id: 'all',   label: 'All',        bodyParts: null },
+  { id: 'upper', label: 'Upper Body', bodyParts: ['upper'] },
+  { id: 'lower', label: 'Lower Body', bodyParts: ['lower'] },
+  { id: 'core',  label: 'Core',       bodyParts: ['core'] },
 ];
 
 // ---------------------------------------------------------------------------
@@ -39,35 +48,37 @@ export default function MusclesScreen() {
   const profile = useAppStore(selectProfile);
   const [filter, setFilter] = useState<Filter>('all');
 
+  /** The filtered muscle-id list — case-insensitive, bodyParts-driven. */
   const muscleIds = useMemo<MuscleGroupId[]>(() => {
-    const filterDef = FILTERS.find(f => f.id === filter);
-    const bodyParts = filterDef?.bodyParts;
-    return ALL_MUSCLE_IDS.filter(id => {
-      if (!bodyParts) return true;
-      return bodyParts.includes(MUSCLE_GROUP_BY_ID[id].bodyPart);
-    });
+    const normalized = (filter ?? 'all').toString().toLowerCase() as Filter;
+    const def = FILTERS.find(f => f.id === normalized) ?? FILTERS[0]!;
+    if (!def.bodyParts) return [...ALL_MUSCLE_IDS];
+    return ALL_MUSCLE_IDS.filter(id =>
+      def.bodyParts!.includes(MUSCLE_GROUP_BY_ID[id].bodyPart),
+    );
   }, [filter]);
 
-  // Apply the "upper/lower/core" filter by re-scoping the list only when set.
-  const scopedFilters = FILTERS.map(f => ({
-    ...f,
-    bodyParts:
-      f.id === 'upper'
-        ? (['upper'] as BodyPart[])
-        : f.id === 'lower'
-        ? (['lower'] as BodyPart[])
-        : f.id === 'core'
-        ? (['core'] as BodyPart[])
-        : undefined,
-  }));
-
+  /** Total XP summed across every muscle (display only — not the tier). */
   const totalMuscleXp = useMemo(() => {
     let s = 0;
     for (const m of Object.values(profile.muscleStats)) s += m.xp;
     return s;
   }, [profile.muscleStats]);
 
-  const overallTier = getOverallTier(totalMuscleXp);
+  /**
+   * Overall Rank = MEAN of every visible muscle's rank (index on the ladder).
+   * Computed over the currently-filtered list so picking "Core" reveals the
+   * overall tier of your core specifically.
+   */
+  const overallTier = useMemo<MuscleTier>(() => {
+    if (muscleIds.length === 0) return 'untrained';
+    const sum = muscleIds.reduce((acc, id) => {
+      const tier = getMuscleTier(profile.muscleStats[id].xp);
+      return acc + tierRankIndex(tier);
+    }, 0);
+    const avgIndex = Math.round(sum / muscleIds.length);
+    return TIER_ORDER[avgIndex] ?? 'untrained';
+  }, [muscleIds, profile.muscleStats]);
   const overallMeta = TIER_META[overallTier];
 
   const FOCUS_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -82,11 +93,11 @@ export default function MusclesScreen() {
       >
         {/* ================================================== HEADER */}
         <View className="items-center px-5 pt-4 pb-5">
-          <Text className="text-[10px] font-semibold tracking-[6px] text-center text-blue-400/70">
+          <Text className="text-center text-[10px] font-semibold uppercase tracking-[6px] text-blue-400/70">
             LE SYSTÈME
           </Text>
           <Text
-            className="mt-1 text-3xl font-black tracking-[3px] text-center text-blue-300"
+            className="mt-1 text-center text-3xl font-black tracking-[3px] text-blue-300"
             style={{
               textShadowColor: '#22D3EE',
               textShadowRadius: 18,
@@ -101,11 +112,8 @@ export default function MusclesScreen() {
         {/* ================================================== TIER LADDER */}
         <View className="px-4 pb-4">
           <View className="flex-row items-start justify-between">
-            {TIER_FAMILIES.slice(3).map(f => (
-              <View
-                key={f.id}
-                className="flex-1 items-center px-0.5"
-              >
+            {TIER_FAMILIES.slice(4).map(f => (
+              <View key={f.id} className="flex-1 items-center justify-center px-0.5">
                 <View
                   className="h-10 w-10 items-center justify-center rounded-full"
                   style={{
@@ -158,9 +166,7 @@ export default function MusclesScreen() {
             >
               <ShieldCheck size={32} color={overallMeta.glow} strokeWidth={2} />
             </View>
-            <Text
-              className="mt-3 text-center text-[9px] font-bold uppercase tracking-[3px] text-slate-400"
-            >
+            <Text className="mt-3 text-center text-[9px] font-bold uppercase tracking-[3px] text-slate-400">
               Overall Rank
             </Text>
             <Text
@@ -182,7 +188,7 @@ export default function MusclesScreen() {
         </View>
 
         {/* ================================================== FILTERS */}
-        <View className="mx-5 mb-5 flex-row rounded-full border border-blue-500/30 bg-white/[0.03] p-1">
+        <View className="mx-5 mb-5 flex-row rounded-full border border-blue-500/30 bg-white/[0.03] p-1.5" style={{ gap: 6 }}>
           {FILTERS.map(f => {
             const active = filter === f.id;
             return (
@@ -201,14 +207,20 @@ export default function MusclesScreen() {
                 }}
               >
                 <Text
-                  className={`text-center text-[11px] font-black uppercase tracking-[3px] ${
+                  className={`text-center text-[10px] font-black uppercase ${
                     active ? 'text-cyan-200' : 'text-slate-500'
                   }`}
                   numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
                   style={
                     active
-                      ? { textShadowColor: '#22D3EE', textShadowRadius: 8 }
-                      : undefined
+                      ? {
+                          textShadowColor: '#22D3EE',
+                          textShadowRadius: 8,
+                          letterSpacing: 1,
+                        }
+                      : { letterSpacing: 1 }
                   }
                 >
                   {f.label}
@@ -217,6 +229,13 @@ export default function MusclesScreen() {
             );
           })}
         </View>
+
+        {/* Debug caption — helps verify the filter took effect at a glance. */}
+        <Text className="mb-2 text-center text-[10px] uppercase tracking-[3px] text-slate-600">
+          {muscleIds.length} muscle{muscleIds.length > 1 ? 's' : ''} — {
+            FILTERS.find(f => f.id === filter)?.label
+          }
+        </Text>
 
         {/* ================================================== MUSCLE LIST */}
         <View className="px-5" style={{ gap: 10 }}>
@@ -317,7 +336,6 @@ export default function MusclesScreen() {
                   </View>
                 </View>
 
-                {/* Row: progress bar + counters */}
                 <View className="mt-3">
                   <GradientBar
                     percent={p.ratio * 100}
