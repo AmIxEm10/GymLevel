@@ -58,6 +58,11 @@ import {
 } from '@/data/workoutTemplates';
 
 import dbHelper from '@/services/database/dbHelper';
+import type { Rank } from '@/data/ranks';
+import {
+  computeDungeonRank,
+  rollEndSessionLoot,
+} from '@/services/lootService';
 import {
   applySetBreakdownToProfile,
   applyXpToLevel,
@@ -713,11 +718,47 @@ export const useAppStore = create<AppState>()(
           );
         }
 
+        // --- End-of-dungeon loot roll ---------------------------------
+        // Resolve dungeon rank from the session's templateId, then let
+        // the loot service decide if + what drops. The player's class
+        // applies its luck + rarity-upgrade modifiers (Mage).
+        let dungeonLoot: EquipmentItem | null = null;
+        if (finalized.totalVolume > 0) {
+          let template: WorkoutTemplate | undefined = undefined;
+          const tid = finalized.templateId;
+          if (tid) {
+            template =
+              BUILT_IN_TEMPLATES_BY_ID[tid] ??
+              get().customTemplates.find(t => t.id === tid);
+          }
+          // Fallback rank for instant dungeons (no template): use C
+          const dungeonRank: Rank = template
+            ? computeDungeonRank(template)
+            : 'C';
+          dungeonLoot = rollEndSessionLoot(
+            dungeonRank,
+            profile.playerClassId,
+            now,
+          );
+        }
+
+        const profileWithLoot: UserProfile = dungeonLoot
+          ? {
+              ...nextProfile,
+              inventory: {
+                ...nextProfile.inventory,
+                equipment: [dungeonLoot, ...nextProfile.inventory.equipment],
+              },
+            }
+          : nextProfile;
+
         set({
           activeSession: null,
-          profile: nextProfile,
+          profile: profileWithLoot,
           workoutHistory: [finalized, ...workoutHistory],
           activeQuests: quests,
+          // Setting lastLootDrop flips the global LootDropModal visible.
+          lastLootDrop: dungeonLoot ?? null,
         });
 
         // Re-evaluate statuses (maybe just pushed a muscle into 'epuise')

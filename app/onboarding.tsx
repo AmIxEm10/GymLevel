@@ -4,11 +4,15 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  HeartPulse,
   Minus,
   Plus,
   Shield,
+  Sparkles,
+  Sprout,
   Sword,
   Swords,
+  Target,
   X,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -43,9 +47,13 @@ const STEP_LABELS: Record<Step, string> = {
 };
 
 const CLASS_ICON: Record<PlayerClassId, LucideIcon> = {
+  novice: Sprout,
   guerrier: Swords,
   assassin: Sword,
   tank: Shield,
+  ranger: Target,
+  mage: Sparkles,
+  healer: HeartPulse,
 };
 
 // ---------------------------------------------------------------------------

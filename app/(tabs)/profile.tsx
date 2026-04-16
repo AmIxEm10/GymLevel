@@ -7,8 +7,10 @@ import {
   Scale,
   Shield,
   Sparkles,
+  Sprout,
   Sword,
   Swords,
+  Target,
   Wind,
   X,
   type LucideIcon,
@@ -34,9 +36,13 @@ import type { PlayerClassId } from '@/types';
 // ---------------------------------------------------------------------------
 
 const PLAYER_CLASS_ICON: Record<PlayerClassId, LucideIcon> = {
+  novice: Sprout,
   guerrier: Swords,
   assassin: Sword,
   tank: Shield,
+  ranger: Target,
+  mage: Sparkles,
+  healer: HeartPulse,
 };
 
 // ---------------------------------------------------------------------------
@@ -239,10 +245,12 @@ export default function ProfileScreen() {
                     strokeWidth={2}
                   />
                   <Text
-                    className="ml-2 text-xl font-black tracking-[2px] text-slate-100"
+                    className="ml-2 text-xl font-black tracking-[2px]"
                     style={{
+                      color: playerClass.colorHex,
                       textShadowColor: playerClass.colorHex,
-                      textShadowRadius: 10,
+                      textShadowRadius: 12,
+                      textShadowOffset: { width: 0, height: 0 },
                     }}
                   >
                     {playerClass.name.toUpperCase()}

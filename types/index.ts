@@ -297,9 +297,13 @@ export interface Quest {
 // ===========================================================================
 
 export type PlayerClassId =
+  | 'novice'     // Classe de départ — aucun bonus actif
   | 'guerrier'   // Force / charges lourdes
   | 'assassin'   // Calisthénie / poids du corps
-  | 'tank';      // Hypertrophie / volume
+  | 'tank'       // Hypertrophie / volume
+  | 'ranger'     // Endurance / cardio / hautes répétitions
+  | 'mage'       // Précision isolation + chance de loot
+  | 'healer';    // Core / régularité + récupération passive boostée
 
 /**
  * Serialisable condition triggering a passive bonus.
@@ -373,6 +377,18 @@ export interface PlayerClass {
   };
   /** Stacking rule: all matching bonuses multiply together. */
   bonuses: ClassBonus[];
+  /**
+   * Passive profile-wide effects beyond the per-set ClassBonus[].
+   * Read by recoveryService (recoveryRate) and lootService (lootLuck).
+   */
+  passiveEffects?: {
+    /** Hourly passive recovery rate override (default 0.02 = 2 %/h). */
+    recoveryRate?: number;
+    /** Loot drop luck multiplier (default 1.0). */
+    lootLuck?: number;
+    /** Rarity upgrade chance on lucky roll (default 0). */
+    rarityUpgradeChance?: number;
+  };
 }
 
 // ===========================================================================

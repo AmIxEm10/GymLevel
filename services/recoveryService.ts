@@ -47,27 +47,36 @@ function overloadThreshold(muscleId: MuscleGroupId): number {
 // ---------------------------------------------------------------------------
 
 /**
- * Hourly passive recovery rate — 2 % of the 24 h window recovers per hour.
- * Full passive recovery from overload ≈ 50 h without training.
+ * Default hourly passive recovery rate — 2 % of the 24 h window per hour.
+ * Classes with a `passiveEffects.recoveryRate` (e.g. Healer → 0.04) override
+ * this; see recoveryRateForProfile().
  */
 export const HOURLY_RECOVERY_RATE = 0.02;
 
+/** Resolve the active recovery rate for a given profile (class-aware). */
+export function recoveryRateForProfile(profile: UserProfile): number {
+  // Lazy require to avoid a cycle with data/playerClasses → types → this.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getPlayerClass } = require('@/data/playerClasses');
+  const cls = getPlayerClass(profile.playerClassId);
+  return cls?.passiveEffects?.recoveryRate ?? HOURLY_RECOVERY_RATE;
+}
+
 /**
  * Rebuild volumeLast24h / volumeLast7d for a muscle given its lastTrainedAt.
- * Continuous (linear) decay at HOURLY_RECOVERY_RATE per hour. The 7-day
- * window still resets hard at the boundary — overload happens on 24 h
- * which is the important signal.
+ * Continuous (linear) decay at the given `recoveryRate` per hour.
  */
 export function decayRollingVolumes(
   stats: MuscleGroupStats,
   now: number,
+  recoveryRate: number = HOURLY_RECOVERY_RATE,
 ): MuscleGroupStats {
   const since = stats.lastTrainedAt ?? 0;
   if (since === 0) return stats;
 
   const hoursSince = (now - since) / MS_PER_HOUR;
 
-  const decayFactor = Math.min(1, hoursSince * HOURLY_RECOVERY_RATE);
+  const decayFactor = Math.min(1, hoursSince * recoveryRate);
 
   const next: MuscleGroupStats = {
     ...stats,
@@ -134,9 +143,12 @@ export function refreshAllMuscleStatuses(
     if (pr.bestVolume > peakVolumePr) peakVolumePr = pr.bestVolume;
   }
 
+  // Class-aware recovery rate (Healer doubles it, etc.).
+  const recoveryRate = recoveryRateForProfile(profile);
+
   const nextStats = { ...profile.muscleStats };
   for (const id of ALL_MUSCLE_IDS) {
-    const decayed = decayRollingVolumes(nextStats[id], now);
+    const decayed = decayRollingVolumes(nextStats[id], now, recoveryRate);
     const newStatus = computeMuscleStatus(decayed, peakVolumePr);
     nextStats[id] = { ...decayed, status: newStatus, statusUntil: null };
   }

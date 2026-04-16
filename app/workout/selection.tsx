@@ -43,18 +43,7 @@ import type {
 // Template → Rank mapping
 // ---------------------------------------------------------------------------
 
-/**
- * Compute a rank for a template. Signature dungeons can pin their own
- * rank via `rankOverride`; everything else falls back to an auto-compute
- * from difficulty + exercise count.
- */
-function computeTemplateRank(tpl: WorkoutTemplate): Rank {
-  if (tpl.rankOverride) return tpl.rankOverride;
-  const n = tpl.exercises.length;
-  if (tpl.difficulty === 'advanced') return n >= 6 ? 'S' : 'A';
-  if (tpl.difficulty === 'intermediate') return n >= 6 ? 'B' : 'C';
-  return n >= 5 ? 'D' : 'E';
-}
+import { computeDungeonRank as computeTemplateRank } from '@/services/lootService';
 
 function levelFromRank(rank: Rank): number {
   // Used to render the hexagonal RankEmblem. Picks the bottom of each tier.
