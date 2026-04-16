@@ -154,6 +154,7 @@ function createDefaultProfile(now: number): UserProfile {
 
     muscleStats: createInitialMuscleStatsRecord(),
     personalRecords: {},
+    weightHistory: [],
     buffs: {},
 
     inventory: createDefaultInventory(now),
@@ -224,6 +225,15 @@ interface AppState {
   // --- Preferences --------------------------------------------------------
   updatePreferences: (patch: Partial<UserPreferences>) => void;
   setBodyweight: (kg: number) => void;
+  /** Batch update of the biometric tiles (height / weight / BPM / VO2). */
+  updateBiometrics: (
+    patch: Partial<{
+      heightCm: number;
+      bodyweightKg: number;
+      restingBpm: number;
+      vo2max: number;
+    }>,
+  ) => void;
 
   // --- Player Class (RPG) -------------------------------------------------
   setPlayerClass: (classId: PlayerClassId) => void;
@@ -421,8 +431,61 @@ export const useAppStore = create<AppState>()(
           profile: {
             ...s.profile,
             preferences: { ...s.profile.preferences, bodyweightKg: clamped },
+            weightHistory: [
+              ...(s.profile.weightHistory ?? []),
+              { weight: clamped, at: Date.now() },
+            ].slice(-180), // keep ~6 months of daily entries max
           },
         }));
+      },
+
+      updateBiometrics: patch => {
+        set(s => {
+          const prefs = s.profile.preferences;
+          const nextPrefs = { ...prefs };
+          if (typeof patch.heightCm === 'number' && patch.heightCm > 0) {
+            nextPrefs.heightCm = Math.max(80, Math.min(250, Math.round(patch.heightCm)));
+          }
+          if (
+            typeof patch.bodyweightKg === 'number' &&
+            patch.bodyweightKg > 0
+          ) {
+            nextPrefs.bodyweightKg = Math.max(
+              BODYWEIGHT_MIN_KG,
+              Math.min(BODYWEIGHT_MAX_KG, Math.round(patch.bodyweightKg)),
+            );
+          }
+          if (
+            typeof patch.restingBpm === 'number' &&
+            patch.restingBpm > 0
+          ) {
+            nextPrefs.restingBpm = Math.max(
+              30,
+              Math.min(220, Math.round(patch.restingBpm)),
+            );
+          }
+          if (typeof patch.vo2max === 'number' && patch.vo2max > 0) {
+            nextPrefs.vo2max = Math.max(
+              10,
+              Math.min(90, Math.round(patch.vo2max)),
+            );
+          }
+          const weightChanged =
+            typeof patch.bodyweightKg === 'number' &&
+            patch.bodyweightKg !== prefs.bodyweightKg;
+          return {
+            profile: {
+              ...s.profile,
+              preferences: nextPrefs,
+              weightHistory: weightChanged
+                ? [
+                    ...(s.profile.weightHistory ?? []),
+                    { weight: nextPrefs.bodyweightKg ?? 0, at: Date.now() },
+                  ].slice(-180)
+                : s.profile.weightHistory,
+            },
+          };
+        });
       },
 
       // -------------------------------------------------------------------
@@ -768,7 +831,48 @@ export const useAppStore = create<AppState>()(
         const { activeSession, profile, workoutHistory } = get();
         if (!activeSession) return;
 
-        const finalized = svcFinalizeSession(activeSession, now);
+        const baseFinalized = svcFinalizeSession(activeSession, now);
+
+        // ---- Security protocols (heuristic anti-cheat) -------------------
+        // 1. Time consistency: gather timestamps of every working set and
+        //    flag the session as a simulation if 5+ working sets were
+        //    logged in < 30 s (the UI cannot beat that pace when an
+        //    athlete actually trains).
+        // 2. Density: totalVolume / workingTimeSeconds. > 500 kg/min for
+        //    low-level users, > 1 000 kg/min for higher levels triggers a
+        //    "distortion de force" warning.
+        const workingTimestamps: number[] = [];
+        for (const we of baseFinalized.exercises) {
+          for (const st of we.sets) {
+            if (!st.isWarmup) workingTimestamps.push(st.completedAt);
+          }
+        }
+        workingTimestamps.sort((a, b) => a - b);
+        let simulationDetected = false;
+        let workingTimeSeconds = 0;
+        if (workingTimestamps.length >= 5) {
+          const span =
+            (workingTimestamps[workingTimestamps.length - 1]! -
+              workingTimestamps[0]!) /
+            1000;
+          workingTimeSeconds = Math.max(0, Math.round(span));
+          if (workingTimestamps.length >= 5 && span < 30) {
+            simulationDetected = true;
+          }
+        }
+        const densityThreshold = profile.level >= 20 ? 1000 : 500;
+        const densityKgPerMin =
+          workingTimeSeconds > 0
+            ? (baseFinalized.totalVolume / workingTimeSeconds) * 60
+            : 0;
+        const densityWarning = densityKgPerMin > densityThreshold;
+
+        const finalized = {
+          ...baseFinalized,
+          simulationDetected,
+          densityWarning,
+          workingTimeSeconds,
+        };
 
         // Persist to SQLite (no-op on web / unsupported) — fire-and-forget
         // so the UI doesn't wait on disk I/O.
@@ -1391,7 +1495,7 @@ export const useAppStore = create<AppState>()(
         lastQuestGenerationAt: state.lastQuestGenerationAt,
         lastDeconditioningResult: state.lastDeconditioningResult,
       }),
-      version: 5,
+      version: 6,
       migrate: (persistedState, version) => {
         const s =
           (persistedState as
@@ -1480,6 +1584,15 @@ export const useAppStore = create<AppState>()(
             if (typeof p.zeroFatigueSessionsCount !== 'number') {
               p.zeroFatigueSessionsCount = 0;
             }
+          }
+        }
+
+        // v5 → v6: weightHistory + biometrics (heightCm / restingBpm / vo2max)
+        // are already optional in UserPreferences. Just seed the history.
+        if (version < 6) {
+          if (s.profile && typeof s.profile === 'object') {
+            const p = s.profile as Record<string, unknown>;
+            if (!Array.isArray(p.weightHistory)) p.weightHistory = [];
           }
         }
 

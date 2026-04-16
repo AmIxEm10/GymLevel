@@ -179,6 +179,14 @@ export interface WorkoutSession {
   /** Secret quest ids that fired during this session. */
   secretQuestsTriggered?: string[];
 
+  // --- Security protocols (heuristic anti-cheat) ----------------------------
+  /** Set when the set-log cadence is implausibly fast. */
+  simulationDetected?: boolean;
+  /** Set when volume/time ratio exceeds the athletic threshold for the rank. */
+  densityWarning?: boolean;
+  /** Total working time in seconds (first to last set gap) — used by density. */
+  workingTimeSeconds?: number;
+
   status: WorkoutStatus;
   notes?: string;
 }
@@ -533,6 +541,19 @@ export interface PersonalRecord {
   /** Estimated 1-rep max (Epley formula). */
   bestEstimated1RM: number;
   lastUpdatedAt: number;
+  /**
+   * When the last jump was >25 % above the previous PR the record is
+   * flagged as 'pending' — it is stored but XP bonus and glow are held
+   * back until manual review / future sessions confirm the level.
+   */
+  pendingValidation?: boolean;
+}
+
+/** One point on the bodyweight timeline. */
+export interface WeightLogEntry {
+  /** Weight in kg at the time of logging. */
+  weight: number;
+  at: number;
 }
 
 /** Active profile-wide buffs from consumables. */
@@ -563,6 +584,9 @@ export interface UserProfile {
 
   /** Personal Records keyed by exerciseId. */
   personalRecords: Record<string, PersonalRecord>;
+
+  /** History of bodyweight readings — used by the Calibration panel trend. */
+  weightHistory: WeightLogEntry[];
 
   /** Active buffs from consumables. */
   buffs: ProfileBuffs;
@@ -658,7 +682,12 @@ export interface Title {
 export type SecretQuestTrigger =
   | { kind: 'single_set_reps'; exerciseId: string; minReps: number }
   | { kind: 'single_set_weight'; exerciseId: string; minWeight: number }
-  | { kind: 'session_volume'; minVolume: number };
+  | { kind: 'session_volume'; minVolume: number }
+  | { kind: 'session_reps'; minReps: number }
+  | { kind: 'streak_days'; minDays: number }
+  | { kind: 'late_workout'; minStartHour: number }
+  | { kind: 'early_workout'; maxStartHour: number }
+  | { kind: 'short_session'; maxSeconds: number; minVolume: number };
 
 export interface SecretQuestDef {
   id: string;

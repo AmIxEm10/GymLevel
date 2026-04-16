@@ -19,6 +19,9 @@ export interface InventoryDisplayItem {
   equipped?: boolean;
   /** Human-readable effect lines shown in the detail modal. */
   effects?: string[];
+  /** If the item belongs to a Set, that set's id + colour drive the badge. */
+  setId?: string;
+  setColor?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,6 +109,31 @@ export function InventorySlot({ item, onPress, emptyIcon }: SlotProps) {
         backgroundColor: palette.bgHex,
       }}
     >
+      {/* Set badge (top-left) — when the item belongs to a known Set. */}
+      {item.setId && item.setColor ? (
+        <View
+          className="absolute left-1 top-1 h-3.5 w-3.5 items-center justify-center rounded-full"
+          style={{
+            borderWidth: 1,
+            borderColor: item.setColor,
+            backgroundColor: 'rgba(0,0,0,0.65)',
+            shadowColor: item.setColor,
+            shadowOpacity: 0.9,
+            shadowRadius: 4,
+            shadowOffset: { width: 0, height: 0 },
+          }}
+        >
+          <View
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: item.setColor,
+            }}
+          />
+        </View>
+      ) : null}
+
       {/* Equipped badge */}
       {item.equipped ? (
         <View

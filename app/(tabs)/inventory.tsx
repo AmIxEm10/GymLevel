@@ -21,6 +21,7 @@ import {
   RARITY_PALETTE,
   type InventoryDisplayItem,
 } from '@/components/InventorySlot';
+import { ITEM_SETS } from '@/data/itemSets';
 import { selectInventory, useAppStore } from '@/store/useAppStore';
 import type {
   ConsumableItem,
@@ -83,6 +84,12 @@ function fromEquipment(
   item: EquipmentItem,
   isEquipped: boolean,
 ): InventoryDisplayItem {
+  // Resolve the item's owning ItemSet (if any).
+  const ownerSet = ITEM_SETS.find(s => s.requiredItems.includes(item.templateId));
+  const effects = item.bonuses.map(b => b.description);
+  if (ownerSet) {
+    effects.push(`⚡ Appartient au Set : ${ownerSet.name}`);
+  }
   return {
     id: item.id,
     name: item.name,
@@ -91,7 +98,9 @@ function fromEquipment(
     icon: SLOT_ICON[item.slot] ?? Gem,
     kind: 'equipment',
     equipped: isEquipped,
-    effects: item.bonuses.map(b => b.description),
+    effects,
+    setId: ownerSet?.id,
+    setColor: ownerSet?.colorHex,
   };
 }
 

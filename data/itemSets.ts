@@ -71,6 +71,32 @@ export const ITEM_SETS: readonly ItemSet[] = [
     effect: { kind: 'fatigue_reduction', points: 15 },
     colorHex: '#22D3EE',
   },
+  {
+    id: 'set_ombre_demon',
+    name: "Set de l'Ombre",
+    description: 'Robe + dague. Bénédiction des ténèbres sur le calisthenics.',
+    requiredItems: ['legendary_body_raiment', 'legendary_weapon_kasaka'],
+    bonusLabel: '+15 % XP sur les exercices au poids du corps.',
+    effect: {
+      kind: 'xp_boost',
+      multiplier: 1.15,
+      // filter.category optional — we narrow via condition-less placeholder
+    },
+    colorHex: '#F43F5E',
+  },
+  {
+    id: 'set_titan_primordial',
+    name: 'Set du Titan',
+    description: 'Visière + ceinture. Le monde te regarde par le haut.',
+    requiredItems: ['epic_head_visor', 'rare_accessory_belt'],
+    bonusLabel: '+8 % XP sur les compounds.',
+    effect: {
+      kind: 'xp_boost',
+      multiplier: 1.08,
+      filter: { movement: 'compound' },
+    },
+    colorHex: '#FBBF24',
+  },
 ];
 
 export const ITEM_SETS_BY_ID: Record<string, ItemSet> = ITEM_SETS.reduce(

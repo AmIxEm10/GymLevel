@@ -429,7 +429,7 @@ export function updatePersonalRecord(
   exerciseId: string,
   effectiveWeight: number,
   now: number,
-): { pr: PersonalRecord; improved: boolean } {
+): { pr: PersonalRecord; improved: boolean; pending: boolean } {
   const volume = effectiveWeight * set.reps;
   const e1rm = estimated1RM(effectiveWeight, set.reps);
 
@@ -453,6 +453,20 @@ export function updatePersonalRecord(
     bestVolume > base.bestVolume ||
     bestEstimated1RM > base.bestEstimated1RM;
 
+  // --- Security protocol: aberrant progression filter ---------------------
+  // Any single metric jumping by >25% in one session is flagged as pending.
+  // The record is still stored (the number becomes the new best), but the
+  // UI should not award glow or the bonus XP until confirmed.
+  let pending = false;
+  if (improved && base.bestWeight > 0) {
+    const weightJump = effectiveWeight / base.bestWeight - 1;
+    const volumeJump = volume / Math.max(1, base.bestVolume) - 1;
+    const e1rmJump = e1rm / Math.max(1, base.bestEstimated1RM) - 1;
+    if (weightJump > 0.25 || volumeJump > 0.25 || e1rmJump > 0.25) {
+      pending = true;
+    }
+  }
+
   return {
     pr: {
       exerciseId,
@@ -461,8 +475,10 @@ export function updatePersonalRecord(
       bestVolume,
       bestEstimated1RM,
       lastUpdatedAt: improved ? now : base.lastUpdatedAt,
+      pendingValidation: pending || base.pendingValidation,
     },
     improved,
+    pending,
   };
 }
 
@@ -471,14 +487,17 @@ export function updatePersonalRecord(
 // ===========================================================================
 
 /**
- * Aggregated "Power Level" — a single number meant to summarise the
- * Chasseur's global strength relative to the rest of the world.
+ * Aggregated "Power Level" (v2) — summary of raw power + conditioning.
  *
- *   PL = (TotalVolume / 100) + (GlobalLevel * 50) + (Σ muscle.xp) / 10
+ *   base    = (totalVolume / 100) + (level × 50) + (Σ muscle.xp / 10)
+ *   force/w = (peakWeightPR / bodyweight) × 500   (relative strength)
+ *   cardio  = (vo2max / 2) + max(0, 70 − restingBpm) × 2
  *
- * The last term is (sum of muscle XP across the 17 groups) / 10 — as each
- * muscle contributes roughly proportional to its rank (muscle XP
- * thresholds were designed for this scale).
+ *   PL = round(base + force/w + cardio)
+ *
+ * The cardio / strength components only contribute when their inputs are
+ * present on the profile (updateBiometrics / PR tracking), so a fresh
+ * profile falls back cleanly to the V1 formula.
  */
 export function calculatePowerLevel(profile: UserProfile): number {
   const volumeComp = profile.totalVolumeLifetime / 100;
@@ -486,7 +505,27 @@ export function calculatePowerLevel(profile: UserProfile): number {
   let muscleComp = 0;
   for (const m of Object.values(profile.muscleStats)) muscleComp += m.xp;
   muscleComp = muscleComp / 10;
-  return Math.round(volumeComp + levelComp + muscleComp);
+  const base = volumeComp + levelComp + muscleComp;
+
+  // Relative strength (force / weight). Uses the best single-set weight
+  // across all tracked PRs (peakWeightPR) vs the current bodyweight.
+  let peakWeight = 0;
+  for (const pr of Object.values(profile.personalRecords)) {
+    if (pr.bestWeight > peakWeight) peakWeight = pr.bestWeight;
+  }
+  const bw = profile.preferences.bodyweightKg ?? 0;
+  const forceWeight =
+    bw > 0 && peakWeight > 0 ? (peakWeight / bw) * 500 : 0;
+
+  // Cardio fitness — VO2max contributes directly, and a low resting
+  // heart rate (≤ 70 bpm) adds a small bonus.
+  const vo2 = profile.preferences.vo2max ?? 0;
+  const rbpm = profile.preferences.restingBpm ?? 0;
+  const cardioFromVO2 = vo2 > 0 ? vo2 / 2 : 0;
+  const cardioFromHR = rbpm > 0 ? Math.max(0, 70 - rbpm) * 2 : 0;
+  const cardio = cardioFromVO2 + cardioFromHR;
+
+  return Math.round(base + forceWeight + cardio);
 }
 
 export function applySetBreakdownToProfile(
