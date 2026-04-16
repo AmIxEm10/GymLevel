@@ -646,6 +646,11 @@ export interface UserProfile {
   completedChallenges: string[];
   /** Counter used by the "Ami des Muscles" title unlock. */
   zeroFatigueSessionsCount: number;
+  /**
+   * Counter used by the "Souverain du Repos" title — increments each time
+   * the player starts a session with global fatigue ≤ 5 %.
+   */
+  freshStartSessionsCount: number;
 
   /** Mailbox — narrative messages from "The System". */
   messages: SystemMessage[];
@@ -708,7 +713,13 @@ export type TitleEffectId =
 export type TitleUnlockCondition =
   | { kind: 'session_ended_before_hour'; hour: number }
   | { kind: 'session_prs'; minCount: number }
-  | { kind: 'zero_fatigue_sessions'; count: number };
+  | { kind: 'zero_fatigue_sessions'; count: number }
+  /**
+   * Counts sessions that were LAUNCHED with the player fully rested
+   * (global fatigue ≤ 5 % at session start). Evaluated against the
+   * persisted `freshStartSessionsCount` counter.
+   */
+  | { kind: 'fresh_start_sessions'; count: number };
 
 /** High-level bucket used by the Titles tab picker on the Profile. */
 export type TitleCategory = 'progression' | 'feats' | 'legendary';

@@ -167,6 +167,19 @@ export const TITLES: readonly Title[] = [
     condition: { kind: 'zero_fatigue_sessions', count: 30 },
     category: 'legendary',
   },
+  // ================================================ V1.3 — Reposed Sovereign
+  {
+    id: 'souverain_repos',
+    name: 'Souverain du Repos',
+    description:
+      'Tu ne charges jamais sans être pleinement rétabli. Le Système salue ta discipline.',
+    unlockHint: 'Lance 5 séances en étant parfaitement reposé (fatigue ≤ 5 %).',
+    effectDescription: 'Fatigue globale affichée réduite de 10 points.',
+    effectId: 'fatigue_reduction_10',
+    colorHex: '#A5F3FC',
+    condition: { kind: 'fresh_start_sessions', count: 5 },
+    category: 'feats',
+  },
 ];
 
 /** Ordered list of categories driving the tab picker on the Profile screen. */

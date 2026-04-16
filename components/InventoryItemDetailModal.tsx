@@ -158,22 +158,33 @@ export function InventoryItemDetailModal({
             </View>
           ) : null}
 
-          {/* Equip / Unequip CTAs (equipment only) */}
+          {/* Equip / Unequip CTAs (equipment only) — colour follows rarity, no
+              more hardcoded amber on non-legendary items. */}
           {onUnequip ? (
             <Pressable
               onPress={onUnequip}
-              className="mt-5 flex-row items-center justify-center rounded-xl border-2 border-amber-400 bg-amber-500/10 py-3 active:opacity-70"
+              className="mt-5 flex-row items-center justify-center rounded-xl border-2 py-3 active:opacity-70"
               style={{
-                shadowColor: '#FBBF24',
-                shadowOpacity: 0.8,
-                shadowRadius: 14,
+                borderColor: palette.border,
+                backgroundColor: 'rgba(255,255,255,0.04)',
+                shadowColor: palette.glow,
+                shadowOpacity: 0.7,
+                shadowRadius: 12,
                 shadowOffset: { width: 0, height: 0 },
               }}
             >
-              <CircleMinus size={14} color="#FDE68A" strokeWidth={2.5} />
+              <CircleMinus
+                size={14}
+                color={palette.iconColor}
+                strokeWidth={2.5}
+              />
               <Text
-                className="ml-2 text-xs font-black uppercase tracking-[4px] text-amber-200"
-                style={{ textShadowColor: '#FBBF24', textShadowRadius: 10 }}
+                className="ml-2 text-xs font-black uppercase tracking-[4px]"
+                style={{
+                  color: palette.border,
+                  textShadowColor: palette.glow,
+                  textShadowRadius: 10,
+                }}
               >
                 Retirer
               </Text>

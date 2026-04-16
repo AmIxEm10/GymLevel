@@ -1,5 +1,6 @@
-import { Lock, type LucideIcon } from 'lucide-react-native';
-import { Pressable, Text, View } from 'react-native';
+import { Lock, Sparkles, type LucideIcon } from 'lucide-react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, Pressable, Text, View } from 'react-native';
 
 import type { EquipmentRarity } from '@/types';
 
@@ -25,8 +26,21 @@ export interface InventoryDisplayItem {
 }
 
 // ---------------------------------------------------------------------------
-// Rarity palette
+// Rarity palette — V2
+//   COMMON     → slate
+//   RARE       → cyan   (matches the Profile aura tier 1)
+//   EPIC       → purple (matches the Profile aura tier 2)
+//   LEGENDARY  → gold   (matches the Profile aura tier 3 — and ONLY this
+//                        tier triggers the sparkle + pulse effects)
 // ---------------------------------------------------------------------------
+
+/** Single source of truth for rarity hex values, consumed across the app. */
+export const RARITY_COLORS: Record<EquipmentRarity, string> = {
+  common:    '#94A3B8',
+  rare:      '#22D3EE', // cyan — was blue (#60A5FA), now cohesive with aura
+  epic:      '#A855F7',
+  legendary: '#F59E0B', // gold border (warmer than #FBBF24 used for the glow)
+};
 
 export const RARITY_PALETTE: Record<
   EquipmentRarity,
@@ -41,34 +55,34 @@ export const RARITY_PALETTE: Record<
 > = {
   common: {
     label: 'Commun',
-    border: '#94A3B8',
+    border: RARITY_COLORS.common,
     iconColor: '#CBD5E1',
-    glow: '#94A3B8',
+    glow: RARITY_COLORS.common,
     bgHex: 'rgba(148,163,184,0.08)',
     textClass: 'text-slate-300',
   },
   rare: {
     label: 'Rare',
-    border: '#60A5FA',
-    iconColor: '#BFDBFE',
-    glow: '#60A5FA',
-    bgHex: 'rgba(96,165,250,0.10)',
-    textClass: 'text-blue-200',
+    border: RARITY_COLORS.rare,
+    iconColor: '#A5F3FC',
+    glow: RARITY_COLORS.rare,
+    bgHex: 'rgba(34,211,238,0.10)',
+    textClass: 'text-cyan-200',
   },
   epic: {
     label: 'Épique',
-    border: '#A855F7',
+    border: RARITY_COLORS.epic,
     iconColor: '#DDD6FE',
-    glow: '#A855F7',
+    glow: RARITY_COLORS.epic,
     bgHex: 'rgba(168,85,247,0.12)',
     textClass: 'text-purple-200',
   },
   legendary: {
     label: 'Légendaire',
-    border: '#FBBF24',
+    border: RARITY_COLORS.legendary,
     iconColor: '#FEF3C7',
     glow: '#FBBF24',
-    bgHex: 'rgba(251,191,36,0.14)',
+    bgHex: 'rgba(245,158,11,0.14)',
     textClass: 'text-amber-200',
   },
 };
@@ -85,6 +99,33 @@ interface SlotProps {
 }
 
 export function InventorySlot({ item, onPress, emptyIcon }: SlotProps) {
+  const isLegendary = item?.rarity === 'legendary';
+
+  // Slow pulse on the outer glow — reserved to LEGENDARY items only.
+  // Declared at the top so the hook ordering is stable across renders.
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!isLegendary) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1400,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 1400,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isLegendary, pulse]);
+
   if (!item) {
     return <EmptySlot icon={emptyIcon} />;
   }
@@ -92,25 +133,44 @@ export function InventorySlot({ item, onPress, emptyIcon }: SlotProps) {
   const palette = RARITY_PALETTE[item.rarity];
   const Icon = item.icon;
 
+  // Glow intensity per rarity — calm for common/rare/epic, vivid for legendary.
+  const baseShadowOpacity =
+    item.rarity === 'common' ? 0.35 :
+    item.rarity === 'rare'   ? 0.55 :
+    item.rarity === 'epic'   ? 0.75 :
+    0.95;
+  const baseShadowRadius =
+    item.rarity === 'common' ? 6 :
+    item.rarity === 'rare'   ? 9 :
+    item.rarity === 'epic'   ? 12 :
+    18;
+
+  // For legendary we drive shadow opacity / radius through the pulse value.
+  const shadowOpacity = isLegendary
+    ? (pulse.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.7, 1],
+      }) as unknown as number)
+    : baseShadowOpacity;
+  const shadowRadius = isLegendary
+    ? (pulse.interpolate({
+        inputRange: [0, 1],
+        outputRange: [14, 22],
+      }) as unknown as number)
+    : baseShadowRadius;
+
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       className="aspect-square rounded-xl bg-slate-900/80 p-2 active:opacity-75"
       style={{
-        borderWidth: item.kind === 'consumable' ? 2 : 1.5,
-        // Consumables get a distinct golden border to stand apart from gear.
-        borderColor: item.kind === 'consumable' ? '#FBBF24' : palette.border,
-        shadowColor: item.kind === 'consumable' ? '#FBBF24' : palette.glow,
-        shadowOpacity:
-          item.kind === 'consumable' ? 0.9 :
-          item.rarity === 'legendary' ? 0.95 : 0.55,
-        shadowRadius:
-          item.kind === 'consumable' ? 14 :
-          item.rarity === 'legendary' ? 16 : 10,
+        borderWidth: isLegendary ? 2 : 1.5,
+        borderColor: palette.border,
+        shadowColor: palette.glow,
+        shadowOpacity,
+        shadowRadius,
         shadowOffset: { width: 0, height: 0 },
-        // Subtle inner tint (react-native-web supports a linear-gradient
-        // via inlineStyle, but to stay cross-platform we just use a flat
-        // rgba backgroundColor layered over bg-slate-900/80).
+        // Subtle inner tint cross-platform (no gradient).
         backgroundColor: palette.bgHex,
       }}
     >
@@ -136,6 +196,13 @@ export function InventorySlot({ item, onPress, emptyIcon }: SlotProps) {
               backgroundColor: item.setColor,
             }}
           />
+        </View>
+      ) : null}
+
+      {/* Sparkle — RESERVED to legendary items, top-left corner. */}
+      {isLegendary ? (
+        <View className="absolute left-1 top-1">
+          <Sparkles size={10} color="#FEF3C7" strokeWidth={2} />
         </View>
       ) : null}
 
@@ -173,15 +240,17 @@ export function InventorySlot({ item, onPress, emptyIcon }: SlotProps) {
         className={`text-[9px] text-center font-bold uppercase tracking-widest ${palette.textClass}`}
         style={{
           textShadowColor: palette.glow,
-          textShadowRadius: 6,
+          textShadowRadius: isLegendary ? 8 : 4,
           textShadowOffset: { width: 0, height: 0 },
         }}
       >
         {item.name}
       </Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // ---------------------------------------------------------------------------
 // Empty slot

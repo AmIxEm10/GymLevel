@@ -32,6 +32,7 @@ import {
   mintItem,
   pickRandomTemplate,
 } from '@/data/equipment';
+import { clampRarityToLevel } from '@/services/lootService';
 import {
   QUEST_LIBRARY,
   QUEST_LIBRARY_BY_CATEGORY,
@@ -342,6 +343,8 @@ export function expireQuests(quests: Quest[], now: number): Quest[] {
 export function rollLootFromQuest(
   quest: Quest,
   now: number,
+  /** Player level used to cap the rarity (no epic below L20, etc.). */
+  playerLevel: number,
 ): EquipmentItem | null {
   const reward = quest.lootReward;
   if (!reward) return null;
@@ -349,10 +352,15 @@ export function rollLootFromQuest(
   if (reward.kind === 'specific') {
     const tpl = ITEM_TEMPLATES_BY_ID[reward.templateId];
     if (!tpl) return null;
+    // Specific rewards bypass the rarity cap intentionally — they're tied
+    // to a hand-picked template and the quest itself was gated upstream.
     return mintItem(tpl, now, quest.id);
   }
 
-  const tpl = pickRandomTemplate(reward.rarity, reward.slot);
+  const cappedRarity = clampRarityToLevel(reward.rarity, playerLevel);
+  if (!cappedRarity) return null;
+
+  const tpl = pickRandomTemplate(cappedRarity, reward.slot);
   if (!tpl) return null;
   return mintItem(tpl, now, quest.id);
 }

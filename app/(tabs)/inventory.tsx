@@ -22,14 +22,22 @@ import {
   type InventoryDisplayItem,
 } from '@/components/InventorySlot';
 import { ITEM_SETS } from '@/data/itemSets';
-import { selectInventory, useAppStore } from '@/store/useAppStore';
+import {
+  EQUIPMENT_UNLOCK_LEVEL,
+  EPIC_UNLOCK_LEVEL,
+  LEGENDARY_UNLOCK_LEVEL,
+} from '@/services/lootService';
+import { selectInventory, selectProfile, useAppStore } from '@/store/useAppStore';
 import type {
   ConsumableItem,
   EquipmentItem,
   EquipmentSlot,
 } from '@/types';
 
+/** 20 slots total — 4 reserved for consumables, 16 for equipment. */
 const TOTAL_SLOTS = 20;
+const CONSUMABLE_SLOTS = 4;
+const EQUIPMENT_SLOTS = TOTAL_SLOTS - CONSUMABLE_SLOTS;
 
 /** Default Lucide icon per equipment slot — used when mapping store items. */
 const SLOT_ICON: Record<EquipmentSlot, LucideIcon> = {
@@ -110,9 +118,12 @@ function fromEquipment(
 
 export default function InventoryScreen() {
   const inventory = useAppStore(selectInventory);
+  const profile = useAppStore(selectProfile);
   const consumeItem = useAppStore(s => s.consumeItem);
   const equipItem = useAppStore(s => s.equipItem);
   const unequipItem = useAppStore(s => s.unequipItem);
+
+  const equipmentUnlocked = profile.level >= EQUIPMENT_UNLOCK_LEVEL;
 
   const [selected, setSelected] = useState<
     | (InventoryDisplayItem & {
@@ -123,24 +134,6 @@ export default function InventoryScreen() {
     | null
   >(null);
 
-  const displayItems = useMemo<
-    Array<InventoryDisplayItem & { consumableId?: string }>
-  >(() => {
-    const equippedIds = new Set(
-      Object.values(inventory.equipped)
-        .filter((v): v is EquipmentItem => Boolean(v))
-        .map(v => v.id),
-    );
-    const real = inventory.equipment.map(it => ({
-      ...fromEquipment(it, equippedIds.has(it.id)),
-      equipmentId: it.id,
-      equipmentSlot: it.slot,
-    }));
-    const consumables = inventory.consumables.map(fromConsumable);
-    return [...consumables, ...real].slice(0, TOTAL_SLOTS);
-  }, [inventory.equipment, inventory.equipped, inventory.consumables]);
-
-  // Build the 20-slot grid: real + placeholders followed by locked slots.
   type SlotItem =
     | (InventoryDisplayItem & {
         consumableId?: string;
@@ -148,11 +141,46 @@ export default function InventoryScreen() {
         equipmentSlot?: EquipmentSlot;
       })
     | null;
-  const slots: SlotItem[] = useMemo(() => {
-    const filled: SlotItem[] = [...displayItems];
-    while (filled.length < TOTAL_SLOTS) filled.push(null);
+
+  const consumableSlots: SlotItem[] = useMemo(() => {
+    const filled: SlotItem[] = inventory.consumables
+      .slice(0, CONSUMABLE_SLOTS)
+      .map(fromConsumable);
+    while (filled.length < CONSUMABLE_SLOTS) filled.push(null);
     return filled;
-  }, [displayItems]);
+  }, [inventory.consumables]);
+
+  const equipmentSlotsArr: SlotItem[] = useMemo(() => {
+    const equippedIds = new Set(
+      Object.values(inventory.equipped)
+        .filter((v): v is EquipmentItem => Boolean(v))
+        .map(v => v.id),
+    );
+    const real: SlotItem[] = inventory.equipment.map(it => ({
+      ...fromEquipment(it, equippedIds.has(it.id)),
+      equipmentId: it.id,
+      equipmentSlot: it.slot,
+    }));
+    while (real.length < EQUIPMENT_SLOTS) real.push(null);
+    return real.slice(0, EQUIPMENT_SLOTS);
+  }, [inventory.equipment, inventory.equipped]);
+
+  const displayItems = useMemo<
+    Array<InventoryDisplayItem & { consumableId?: string }>
+  >(
+    () => [
+      ...inventory.consumables.map(fromConsumable),
+      ...inventory.equipment.map(it => ({
+        ...fromEquipment(
+          it,
+          Object.values(inventory.equipped).some(e => e?.id === it.id),
+        ),
+        equipmentId: it.id,
+        equipmentSlot: it.slot,
+      })),
+    ],
+    [inventory.consumables, inventory.equipment, inventory.equipped],
+  );
 
   const handleConsume = () => {
     if (selected?.consumableId) {
@@ -247,10 +275,19 @@ export default function InventoryScreen() {
           )}
         </View>
 
-        {/* ================================================== GRID */}
+        {/* ================================================== CONSUMABLES */}
+        <View className="px-5 pb-2">
+          <Text
+            className="text-[11px] font-black uppercase tracking-[3px] text-cyan-300"
+            style={{ textShadowColor: '#22D3EE', textShadowRadius: 6 }}
+          >
+            Consommables
+          </Text>
+          <View className="mt-1 h-[1px] w-12 bg-cyan-400/70" />
+        </View>
         <View className="flex-row flex-wrap px-4">
-          {slots.map((item, i) => (
-            <View key={item?.id ?? `empty_${i}`} className="w-1/4 p-1.5">
+          {consumableSlots.map((item, i) => (
+            <View key={item?.id ?? `cons_${i}`} className="w-1/4 p-1.5">
               <InventorySlot
                 item={item}
                 emptyIcon={Lock}
@@ -260,9 +297,59 @@ export default function InventoryScreen() {
           ))}
         </View>
 
+        {/* ================================================== EQUIPMENT */}
+        <View className="mt-4 px-5 pb-2 flex-row items-end justify-between">
+          <View>
+            <Text
+              className="text-[11px] font-black uppercase tracking-[3px]"
+              style={{
+                color: equipmentUnlocked ? '#A5F3FC' : '#64748B',
+                textShadowColor: equipmentUnlocked ? '#22D3EE' : 'transparent',
+                textShadowRadius: equipmentUnlocked ? 6 : 0,
+              }}
+            >
+              Équipement
+            </Text>
+            <View
+              className="mt-1 h-[1px] w-12"
+              style={{
+                backgroundColor: equipmentUnlocked ? '#22D3EE' : '#334155',
+              }}
+            />
+          </View>
+          <Text
+            className="text-[9px] uppercase tracking-widest"
+            style={{
+              color: equipmentUnlocked ? '#94A3B8' : '#475569',
+            }}
+          >
+            {equipmentUnlocked
+              ? `Niv. ${profile.level} · Cap : ${rarityCapLabel(profile.level)}`
+              : `Verrouillé · Niv. ${EQUIPMENT_UNLOCK_LEVEL}`}
+          </Text>
+        </View>
+
+        {equipmentUnlocked ? (
+          <View className="flex-row flex-wrap px-4">
+            {equipmentSlotsArr.map((item, i) => (
+              <View key={item?.id ?? `eq_${i}`} className="w-1/4 p-1.5">
+                <InventorySlot
+                  item={item}
+                  emptyIcon={Lock}
+                  onPress={item ? () => setSelected(item) : undefined}
+                />
+              </View>
+            ))}
+          </View>
+        ) : (
+          <EquipmentLockBanner playerLevel={profile.level} />
+        )}
+
         {/* Footer hint */}
         <Text className="mt-4 px-8 text-center text-[10px] italic text-slate-600">
-          Les cases verrouillées se débloquent en grimpant de rang.
+          {equipmentUnlocked
+            ? `Rare au Nv. ${EQUIPMENT_UNLOCK_LEVEL} · Épique au Nv. ${EPIC_UNLOCK_LEVEL} · Légendaire au Nv. ${LEGENDARY_UNLOCK_LEVEL}.`
+            : 'Continue à monter en niveau, chasseur. Les reliques se mériteront.'}
         </Text>
       </ScrollView>
 
@@ -279,5 +366,59 @@ export default function InventoryScreen() {
         }
       />
     </SafeAreaView>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function rarityCapLabel(level: number): string {
+  if (level >= LEGENDARY_UNLOCK_LEVEL) return 'Légendaire';
+  if (level >= EPIC_UNLOCK_LEVEL) return 'Épique';
+  return 'Rare';
+}
+
+function EquipmentLockBanner({ playerLevel }: { playerLevel: number }) {
+  const remaining = Math.max(0, EQUIPMENT_UNLOCK_LEVEL - playerLevel);
+  const ratio = Math.min(1, playerLevel / EQUIPMENT_UNLOCK_LEVEL);
+  return (
+    <View className="mx-5 mt-1 mb-2">
+      <View
+        className="items-center rounded-2xl border-2 border-dashed border-slate-700 bg-white/[0.02] p-6"
+        style={{
+          shadowColor: '#22D3EE',
+          shadowOpacity: 0.15,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 0 },
+        }}
+      >
+        <View
+          className="h-14 w-14 items-center justify-center rounded-full border border-slate-700 bg-slate-950/80"
+        >
+          <Lock size={22} color="#64748B" strokeWidth={1.75} />
+        </View>
+        <Text
+          className="mt-3 text-center text-[12px] font-black uppercase tracking-[3px] text-slate-300"
+        >
+          Débloqué au Niveau {EQUIPMENT_UNLOCK_LEVEL}
+        </Text>
+        <Text className="mt-2 text-center text-[10px] italic leading-5 text-slate-500">
+          Le Système ne distribue pas d'équipement aux chasseurs novices.
+          {remaining > 0
+            ? ` Encore ${remaining} niveau${remaining > 1 ? 'x' : ''} avant la première relique.`
+            : ''}
+        </Text>
+        <View className="mt-3 h-1.5 w-32 overflow-hidden rounded-full bg-slate-800">
+          <View
+            className="h-full rounded-full bg-cyan-400"
+            style={{ width: `${ratio * 100}%` }}
+          />
+        </View>
+        <Text className="mt-1 text-[9px] uppercase tracking-widest text-slate-600">
+          Niv. {playerLevel} / {EQUIPMENT_UNLOCK_LEVEL}
+        </Text>
+      </View>
+    </View>
   );
 }

@@ -12,6 +12,17 @@ import type { ConsumableItem, ConsumableTemplate } from '@/types';
  */
 export const CONSUMABLE_TEMPLATES: readonly ConsumableTemplate[] = [
   {
+    id: 'RATION_FRAICHE',
+    name: 'Ration Fraîche',
+    description:
+      'Vivres standards du Système. Évapore 10 % de ta fatigue musculaire. ' +
+      'Le seul kit accordé aux chasseurs novices.',
+    icon: 'flask',
+    rarity: 'common',
+    subtype: 'elixir',
+    effect: { kind: 'reduce_volume24h', percent: 10 },
+  },
+  {
     id: 'ELIXIR_FATIGUE',
     name: 'Élixir de Récupération',
     description:
@@ -78,13 +89,12 @@ export function mintConsumable(
   };
 }
 
-/** Fresh-profile starter pack — gives the user 2 elixirs + 1 S-rank key. */
+/**
+ * Fresh-profile starter pack — V3 nerf: a single Common ration. Powerful
+ * consumables (Elixir / Scroll / Key / Cœur du Monarque) are now earned
+ * through gameplay, not handed out.
+ */
 export function createStarterConsumables(now: number): ConsumableItem[] {
-  const elx = CONSUMABLE_TEMPLATES_BY_ID.ELIXIR_FATIGUE!;
-  const key = CONSUMABLE_TEMPLATES_BY_ID.KEY_S_RANK!;
-  return [
-    mintConsumable(elx, now),
-    mintConsumable(elx, now + 1),
-    mintConsumable(key, now + 2),
-  ];
+  const ration = CONSUMABLE_TEMPLATES_BY_ID.RATION_FRAICHE!;
+  return [mintConsumable(ration, now)];
 }

@@ -44,6 +44,7 @@ import {
 } from '@/data/classEvolution';
 import { TITLES_BY_ID } from '@/data/titles';
 import { getMuscleTier, type MuscleTier } from '@/data/muscleTiers';
+import { computeGlobalFatigue } from '@/components/FatigueBar';
 import type { MuscleRankUp } from '@/components/MuscleRankUpModal';
 import { SECRET_QUESTS, SECRET_QUESTS_BY_ID } from '@/data/secretQuests';
 import {
@@ -87,6 +88,8 @@ import {
 import dbHelper from '@/services/database/dbHelper';
 import type { Rank } from '@/data/ranks';
 import {
+  EQUIPMENT_UNLOCK_LEVEL,
+  clampRarityToLevel,
   computeDungeonRank,
   rollEndSessionLoot,
 } from '@/services/lootService';
@@ -182,11 +185,31 @@ function createDefaultProfile(now: number): UserProfile {
     completedSecretQuests: [],
     completedChallenges: [],
     zeroFatigueSessionsCount: 0,
+    freshStartSessionsCount: 0,
 
     // Mailbox — seeded empty. initializeApp() will deliver welcome messages.
     messages: [],
 
     preferences: DEFAULT_PREFERENCES,
+  };
+}
+
+/**
+ * Increment freshStartSessionsCount when the player starts a session with
+ * the global fatigue gauge already at ≤ 5 % (i.e. they are "rested"). The
+ * counter is consumed by the "Souverain du Repos" title check that runs at
+ * endSession().
+ */
+function bumpFreshStartIfRested(profile: UserProfile): UserProfile {
+  const fatigue = computeGlobalFatigue(
+    profile.muscleStats,
+    profile.activeTitleId,
+    0,
+  );
+  if (fatigue > 5) return profile;
+  return {
+    ...profile,
+    freshStartSessionsCount: (profile.freshStartSessionsCount ?? 0) + 1,
   };
 }
 
@@ -659,12 +682,18 @@ export const useAppStore = create<AppState>()(
           builtInTemplates.find(t => t.id === templateId);
         if (!template) return;
 
-        set({ activeSession: sessionFromTemplate(template, now) });
+        set(s => ({
+          activeSession: sessionFromTemplate(template, now),
+          profile: bumpFreshStartIfRested(s.profile),
+        }));
       },
 
       startBlankSession: (name = 'Séance libre') => {
         if (get().activeSession) return;
-        set({ activeSession: blankSession(name, Date.now()) });
+        set(s => ({
+          activeSession: blankSession(name, Date.now()),
+          profile: bumpFreshStartIfRested(s.profile),
+        }));
       },
 
       startInstantDungeon: () => {
@@ -694,7 +723,10 @@ export const useAppStore = create<AppState>()(
         for (const ex of picks) {
           session = svcAddExercise(session, ex.id, now);
         }
-        set({ activeSession: session });
+        set(s => ({
+          activeSession: session,
+          profile: bumpFreshStartIfRested(s.profile),
+        }));
       },
 
       addExerciseToSession: exerciseId => {
@@ -1137,6 +1169,9 @@ export const useAppStore = create<AppState>()(
             dungeonRank,
             profile.playerClassId,
             now,
+            // Use the post-XP level so a player who just dinged L10 can
+            // already receive equipment from the same session.
+            nextProfile.level,
             setLootLuck,
           );
         }
@@ -1223,11 +1258,19 @@ export const useAppStore = create<AppState>()(
               profileWithLoot.totalXp,
               def.xpReward,
             );
-            // Guaranteed loot at the specified rarity
-            const tpl = pickRandomTemplate(def.lootRarity);
+            // Guaranteed loot at the specified rarity — clamped to the
+            // player's current level cap (no legendary drops below L40).
+            // Secret quests below L10 give no equipment at all.
             let secretItem: EquipmentItem | null = null;
-            if (tpl) {
-              secretItem = mintItem(tpl, now, `secret:${def.id}`);
+            const allowedRarity = clampRarityToLevel(
+              def.lootRarity,
+              profileWithLoot.level,
+            );
+            if (allowedRarity) {
+              const tpl = pickRandomTemplate(allowedRarity);
+              if (tpl) {
+                secretItem = mintItem(tpl, now, `secret:${def.id}`);
+              }
             }
 
             profileWithLoot = {
@@ -1296,6 +1339,9 @@ export const useAppStore = create<AppState>()(
             matches = sessionPrs >= c.minCount;
           } else if (c.kind === 'zero_fatigue_sessions') {
             matches = nextZeroFatigueCount >= c.count;
+          } else if (c.kind === 'fresh_start_sessions') {
+            matches =
+              (profileWithLoot.freshStartSessionsCount ?? 0) >= c.count;
           }
           if (matches) newlyUnlockedTitles.push(title.id);
         }
@@ -1451,15 +1497,20 @@ export const useAppStore = create<AppState>()(
 
       claimQuestReward: questId => {
         const now = Date.now();
-        const { activeQuests } = get();
+        const { activeQuests, profile } = get();
         const quest = activeQuests.find(q => q.id === questId);
         if (!quest || quest.status !== 'completed') return;
 
         // 1) Global XP reward
         get().grantXp('global', quest.xpReward);
 
-        // 2) Roll loot (if the quest has a reward defined)
-        const lootItem = rollLootFromQuest(quest, now);
+        // 2) Roll loot (if the quest has a reward defined). Equipment is
+        //    locked behind EQUIPMENT_UNLOCK_LEVEL — pre-L10, the quest
+        //    pays out XP only.
+        const lootItem =
+          profile.level >= EQUIPMENT_UNLOCK_LEVEL
+            ? rollLootFromQuest(quest, now, profile.level)
+            : null;
 
         set(s => ({
           activeQuests: s.activeQuests.filter(q => q.id !== questId),
@@ -1967,7 +2018,7 @@ export const useAppStore = create<AppState>()(
         lastQuestGenerationAt: state.lastQuestGenerationAt,
         lastDeconditioningResult: state.lastDeconditioningResult,
       }),
-      version: 7,
+      version: 8,
       migrate: (persistedState, version) => {
         const s =
           (persistedState as
@@ -2077,6 +2128,16 @@ export const useAppStore = create<AppState>()(
             }
             if (!Array.isArray(p.messages)) {
               p.messages = [];
+            }
+          }
+        }
+
+        // v7 → v8: freshStartSessionsCount counter for "Souverain du Repos".
+        if (version < 8) {
+          if (s.profile && typeof s.profile === 'object') {
+            const p = s.profile as Record<string, unknown>;
+            if (typeof p.freshStartSessionsCount !== 'number') {
+              p.freshStartSessionsCount = 0;
             }
           }
         }
