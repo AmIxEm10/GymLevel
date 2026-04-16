@@ -26,9 +26,9 @@ type Filter = 'all' | 'upper' | 'lower' | 'core';
 
 const FILTERS: Array<{ id: Filter; label: string; bodyParts?: BodyPart[] }> = [
   { id: 'all',   label: 'All' },
-  { id: 'upper', label: 'Upper Body', bodyParts: ['upper'] },
-  { id: 'lower', label: 'Lower Body', bodyParts: ['lower'] },
-  { id: 'core',  label: 'Core',       bodyParts: ['core'] },
+  { id: 'upper', label: 'Upper' },
+  { id: 'lower', label: 'Lower' },
+  { id: 'core',  label: 'Core'  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -48,6 +48,19 @@ export default function MusclesScreen() {
     });
   }, [filter]);
 
+  // Apply the "upper/lower/core" filter by re-scoping the list only when set.
+  const scopedFilters = FILTERS.map(f => ({
+    ...f,
+    bodyParts:
+      f.id === 'upper'
+        ? (['upper'] as BodyPart[])
+        : f.id === 'lower'
+        ? (['lower'] as BodyPart[])
+        : f.id === 'core'
+        ? (['core'] as BodyPart[])
+        : undefined,
+  }));
+
   const totalMuscleXp = useMemo(() => {
     let s = 0;
     for (const m of Object.values(profile.muscleStats)) s += m.xp;
@@ -57,7 +70,6 @@ export default function MusclesScreen() {
   const overallTier = getOverallTier(totalMuscleXp);
   const overallMeta = TIER_META[overallTier];
 
-  // Recently trained muscles get the FOCUS badge (last 24h).
   const FOCUS_WINDOW_MS = 24 * 60 * 60 * 1000;
   const now = Date.now();
 
@@ -69,12 +81,12 @@ export default function MusclesScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ================================================== HEADER */}
-        <View className="px-5 pt-4 pb-4">
-          <Text className="text-[10px] font-semibold tracking-[6px] text-blue-400/70">
+        <View className="items-center px-5 pt-4 pb-5">
+          <Text className="text-[10px] font-semibold tracking-[6px] text-center text-blue-400/70">
             LE SYSTÈME
           </Text>
           <Text
-            className="mt-1 text-3xl font-black tracking-[3px] text-blue-300"
+            className="mt-1 text-3xl font-black tracking-[3px] text-center text-blue-300"
             style={{
               textShadowColor: '#22D3EE',
               textShadowRadius: 18,
@@ -83,29 +95,34 @@ export default function MusclesScreen() {
           >
             MUSCLE RANKINGS
           </Text>
-          <View className="mt-2 h-[2px] w-20 bg-cyan-400" />
+          <View className="mt-3 h-[2px] w-20 bg-cyan-400" />
         </View>
 
         {/* ================================================== TIER LADDER */}
-        <View className="px-5 pb-3">
-          <View className="flex-row justify-between">
+        <View className="px-4 pb-4">
+          <View className="flex-row items-start justify-between">
             {TIER_FAMILIES.slice(3).map(f => (
-              <View key={f.id} className="flex-1 items-center">
+              <View
+                key={f.id}
+                className="flex-1 items-center px-0.5"
+              >
                 <View
-                  className="h-9 w-9 items-center justify-center rounded-full border"
+                  className="h-10 w-10 items-center justify-center rounded-full"
                   style={{
+                    borderWidth: 1.25,
                     borderColor: f.color,
-                    backgroundColor: `${f.color}15`,
+                    backgroundColor: `${f.color}18`,
                     shadowColor: f.glow,
-                    shadowOpacity: 0.65,
-                    shadowRadius: 8,
+                    shadowOpacity: 0.7,
+                    shadowRadius: 10,
                     shadowOffset: { width: 0, height: 0 },
                   }}
                 >
-                  <Shield size={16} color={f.color} strokeWidth={2} />
+                  <Shield size={18} color={f.color} strokeWidth={2} />
                 </View>
                 <Text
-                  className="mt-1 text-[9px] font-bold uppercase tracking-widest"
+                  className="mt-1.5 text-center text-[9px] font-bold uppercase tracking-widest"
+                  numberOfLines={1}
                   style={{ color: f.color }}
                 >
                   {f.label}
@@ -116,9 +133,9 @@ export default function MusclesScreen() {
         </View>
 
         {/* ================================================== OVERALL RANK */}
-        <View className="mx-5 mb-4">
+        <View className="mx-5 mb-5">
           <View
-            className="items-center rounded-2xl border-2 bg-white/[0.03] px-4 py-5"
+            className="items-center justify-center rounded-2xl border-2 bg-white/[0.03] px-5 py-6"
             style={{
               borderColor: overallMeta.color,
               shadowColor: overallMeta.glow,
@@ -139,15 +156,15 @@ export default function MusclesScreen() {
                 shadowOffset: { width: 0, height: 0 },
               }}
             >
-              <ShieldCheck size={30} color={overallMeta.glow} strokeWidth={2} />
+              <ShieldCheck size={32} color={overallMeta.glow} strokeWidth={2} />
             </View>
             <Text
-              className="mt-2 text-[9px] font-bold uppercase tracking-[3px] text-slate-400"
+              className="mt-3 text-center text-[9px] font-bold uppercase tracking-[3px] text-slate-400"
             >
               Overall Rank
             </Text>
             <Text
-              className="text-2xl font-black tracking-wider"
+              className="mt-0.5 text-center text-2xl font-black tracking-wider"
               style={{
                 color: overallMeta.color,
                 textShadowColor: overallMeta.glow,
@@ -156,7 +173,7 @@ export default function MusclesScreen() {
             >
               {overallMeta.label}
             </Text>
-            <Text className="mt-0.5 text-[11px] text-slate-500">
+            <Text className="mt-1 text-center text-[11px] text-slate-500">
               {totalMuscleXp >= 1000
                 ? `${(totalMuscleXp / 1000).toFixed(1)}k Total XP`
                 : `${Math.round(totalMuscleXp)} Total XP`}
@@ -165,14 +182,14 @@ export default function MusclesScreen() {
         </View>
 
         {/* ================================================== FILTERS */}
-        <View className="mx-5 mb-4 flex-row rounded-full border border-blue-500/30 bg-white/[0.03] p-1">
+        <View className="mx-5 mb-5 flex-row rounded-full border border-blue-500/30 bg-white/[0.03] p-1">
           {FILTERS.map(f => {
             const active = filter === f.id;
             return (
               <Pressable
                 key={f.id}
                 onPress={() => setFilter(f.id)}
-                className="flex-1 items-center rounded-full py-1.5 active:opacity-70"
+                className="flex-1 items-center justify-center rounded-full py-2 active:opacity-70"
                 style={{
                   backgroundColor: active ? 'rgba(34,211,238,0.20)' : 'transparent',
                   borderWidth: active ? 1 : 0,
@@ -184,9 +201,10 @@ export default function MusclesScreen() {
                 }}
               >
                 <Text
-                  className={`text-[11px] font-black uppercase tracking-[3px] ${
+                  className={`text-center text-[11px] font-black uppercase tracking-[3px] ${
                     active ? 'text-cyan-200' : 'text-slate-500'
                   }`}
+                  numberOfLines={1}
                   style={
                     active
                       ? { textShadowColor: '#22D3EE', textShadowRadius: 8 }
@@ -201,7 +219,7 @@ export default function MusclesScreen() {
         </View>
 
         {/* ================================================== MUSCLE LIST */}
-        <View className="px-5 gap-2">
+        <View className="px-5" style={{ gap: 10 }}>
           {muscleIds.map(id => {
             const muscle = MUSCLE_GROUP_BY_ID[id];
             const stats = profile.muscleStats[id];
@@ -225,57 +243,60 @@ export default function MusclesScreen() {
                   shadowOffset: { width: 0, height: 0 },
                 }}
               >
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-row items-center">
-                    {/* Mini anatomical dot using the muscle's own color */}
+                {/* Row: icon + name + focus + tier */}
+                <View className="flex-row items-center">
+                  <View
+                    className="h-9 w-9 items-center justify-center rounded-xl"
+                    style={{
+                      borderWidth: 1.25,
+                      borderColor: muscle.colorHex,
+                      backgroundColor: `${muscle.colorHex}22`,
+                    }}
+                  >
                     <View
-                      className="h-9 w-9 items-center justify-center rounded-xl"
                       style={{
-                        borderWidth: 1.25,
-                        borderColor: muscle.colorHex,
-                        backgroundColor: `${muscle.colorHex}22`,
+                        width: 12,
+                        height: 12,
+                        borderRadius: 6,
+                        backgroundColor: muscle.colorHex,
                       }}
-                    >
-                      <View
-                        style={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: 6,
-                          backgroundColor: muscle.colorHex,
-                        }}
-                      />
-                    </View>
-
-                    <Text className="ml-3 text-base font-bold tracking-wider text-slate-100">
-                      {muscle.nameEn}
-                    </Text>
-
-                    {isFocus ? (
-                      <View
-                        className="ml-2 rounded-md px-1.5 py-0.5"
-                        style={{
-                          borderWidth: 1,
-                          borderColor: '#F97316',
-                          backgroundColor: 'rgba(249,115,22,0.15)',
-                          shadowColor: '#F97316',
-                          shadowOpacity: 0.8,
-                          shadowRadius: 6,
-                          shadowOffset: { width: 0, height: 0 },
-                        }}
-                      >
-                        <Text
-                          className="text-[9px] font-black uppercase tracking-[2px] text-orange-300"
-                          style={{ textShadowColor: '#F97316', textShadowRadius: 4 }}
-                        >
-                          Focus
-                        </Text>
-                      </View>
-                    ) : null}
+                    />
                   </View>
 
-                  {/* Tier badge */}
+                  <Text
+                    className="ml-3 flex-1 text-base font-bold tracking-wider text-slate-100"
+                    numberOfLines={1}
+                  >
+                    {muscle.nameEn}
+                  </Text>
+
+                  {isFocus ? (
+                    <View
+                      className="mr-2 items-center justify-center rounded-md px-2 py-0.5"
+                      style={{
+                        borderWidth: 1,
+                        borderColor: '#F97316',
+                        backgroundColor: 'rgba(249,115,22,0.15)',
+                        shadowColor: '#F97316',
+                        shadowOpacity: 0.8,
+                        shadowRadius: 6,
+                        shadowOffset: { width: 0, height: 0 },
+                      }}
+                    >
+                      <Text
+                        className="text-center text-[9px] font-black uppercase tracking-[2px] text-orange-300"
+                        style={{
+                          textShadowColor: '#F97316',
+                          textShadowRadius: 4,
+                        }}
+                      >
+                        FOCUS
+                      </Text>
+                    </View>
+                  ) : null}
+
                   <View
-                    className="flex-row items-center rounded-lg px-2 py-0.5"
+                    className="flex-row items-center justify-center rounded-lg px-2 py-0.5"
                     style={{
                       borderWidth: 1,
                       borderColor: meta.color,
@@ -284,7 +305,7 @@ export default function MusclesScreen() {
                   >
                     <Shield size={10} color={meta.color} strokeWidth={2.25} />
                     <Text
-                      className="ml-1 text-[10px] font-black uppercase tracking-widest"
+                      className="ml-1 text-center text-[10px] font-black uppercase tracking-widest"
                       style={{
                         color: meta.color,
                         textShadowColor: meta.glow,
@@ -296,21 +317,23 @@ export default function MusclesScreen() {
                   </View>
                 </View>
 
-                <View className="mt-2.5">
+                {/* Row: progress bar + counters */}
+                <View className="mt-3">
                   <GradientBar
                     percent={p.ratio * 100}
                     height={5}
                     startColor="#1e40af"
                     endColor={meta.glow}
                   />
-                  <View className="mt-1 flex-row items-center justify-between">
+                  <View className="mt-1.5 flex-row items-center justify-between">
                     <Text className="text-[10px] text-slate-500">
                       {Math.round(stats.xp).toLocaleString()} XP
                     </Text>
-                    <Text className="text-[10px] font-semibold" style={{ color: meta.color }}>
-                      {p.next
-                        ? `Nv. ${TIER_META[p.next].label}`
-                        : 'Tier max'}
+                    <Text
+                      className="text-[10px] font-semibold"
+                      style={{ color: meta.color }}
+                    >
+                      {p.next ? `→ ${TIER_META[p.next].label}` : 'Tier max'}
                     </Text>
                   </View>
                 </View>
