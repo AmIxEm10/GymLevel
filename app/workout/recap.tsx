@@ -46,7 +46,7 @@ export default function WorkoutRecapScreen() {
 
   if (!lastSession) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-black">
+      <SafeAreaView className="flex-1 items-center justify-center bg-[#020617]">
         <Text className="text-sm uppercase tracking-[4px] text-slate-500">
           Aucune mission récente.
         </Text>
@@ -71,7 +71,7 @@ export default function WorkoutRecapScreen() {
   );
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-black">
+    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-[#020617]">
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 80 }}
@@ -97,6 +97,46 @@ export default function WorkoutRecapScreen() {
             {lastSession.name} — archivée dans tes registres.
           </Text>
         </View>
+
+        {/* Security warnings */}
+        {lastSession.simulationDetected || lastSession.densityWarning ? (
+          <View className="mx-5 mb-4 rounded-xl border border-amber-500/60 bg-amber-500/10 p-3">
+            <Text className="text-[10px] font-black uppercase tracking-[3px] text-amber-300">
+              ⚠ Vérification du Système
+            </Text>
+            {lastSession.simulationDetected ? (
+              <Text className="mt-1 text-[11px] text-amber-200">
+                Simulation détectée — cadence de validation trop rapide.
+              </Text>
+            ) : null}
+            {lastSession.densityWarning ? (
+              <Text className="mt-1 text-[11px] text-amber-200">
+                Distorsion de force — densité Volume/Temps hors norme.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* Pending PRs */}
+        {(() => {
+          const pendingPrs = Object.values(profile.personalRecords).filter(
+            pr =>
+              pr.pendingValidation &&
+              pr.lastUpdatedAt >= lastSession.startedAt,
+          );
+          if (pendingPrs.length === 0) return null;
+          return (
+            <View className="mx-5 mb-4 rounded-xl border border-rose-500/60 bg-rose-500/10 p-3">
+              <Text className="text-[10px] font-black uppercase tracking-[3px] text-rose-300">
+                ⚠ Vérification · {pendingPrs.length} record{pendingPrs.length > 1 ? 's' : ''} en attente
+              </Text>
+              <Text className="mt-1 text-[11px] text-rose-200">
+                Un ou plusieurs records ont bondi de plus de 25 % — le bonus
+                XP est mis en attente jusqu'à confirmation par le Système.
+              </Text>
+            </View>
+          );
+        })()}
 
         {/* XP hero */}
         <View className="mx-5 mb-5 rounded-3xl border-2 border-amber-400/70 bg-amber-500/5 p-6 items-center"
@@ -244,7 +284,7 @@ export default function WorkoutRecapScreen() {
       </ScrollView>
 
       {/* Footer */}
-      <View className="border-t border-slate-800 bg-black/80 px-5 py-4">
+      <View className="border-t border-slate-800 bg-[#020617]/80 px-5 py-4">
         <Pressable
           onPress={() => router.replace('/')}
           className="flex-row items-center justify-center rounded-2xl border-2 border-blue-400 bg-blue-500/20 py-4 active:opacity-70"

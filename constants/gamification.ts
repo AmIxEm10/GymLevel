@@ -65,6 +65,12 @@ export const MAX_CLASS_MULTIPLIER = 1.5;
  */
 export const MAX_EQUIPMENT_MULTIPLIER = 1.3;
 
+/**
+ * Maximum stacked ItemSet bonus multiplier. Prevents panoplies from
+ * combining into runaway XP gains.
+ */
+export const MAX_SET_MULTIPLIER = 1.25;
+
 // ---------- Recovery / Status ---------------------------------------------
 
 /** Thresholds (hours since lastTrainedAt) at which a muscle moves status. */

@@ -237,8 +237,8 @@ export default function MusclesScreen() {
           }
         </Text>
 
-        {/* ================================================== MUSCLE LIST */}
-        <View className="px-5" style={{ gap: 10 }}>
+        {/* ============================================ MUSCLE GRID (3 cols) */}
+        <View className="px-3 flex-row flex-wrap">
           {muscleIds.map(id => {
             const muscle = MUSCLE_GROUP_BY_ID[id];
             const stats = profile.muscleStats[id];
@@ -250,110 +250,104 @@ export default function MusclesScreen() {
               now - stats.lastTrainedAt < FOCUS_WINDOW_MS;
 
             return (
-              <View
-                key={id}
-                className="rounded-2xl border p-3"
-                style={{
-                  borderColor: meta.color,
-                  backgroundColor: 'rgba(255,255,255,0.02)',
-                  shadowColor: meta.glow,
-                  shadowOpacity: 0.55,
-                  shadowRadius: 12,
-                  shadowOffset: { width: 0, height: 0 },
-                }}
-              >
-                {/* Row: icon + name + focus + tier */}
-                <View className="flex-row items-center">
-                  <View
-                    className="h-9 w-9 items-center justify-center rounded-xl"
-                    style={{
-                      borderWidth: 1.25,
-                      borderColor: muscle.colorHex,
-                      backgroundColor: `${muscle.colorHex}22`,
-                    }}
-                  >
+              <View key={id} className="w-1/3 p-1">
+                <View
+                  className="rounded-xl border p-2 items-center"
+                  style={{
+                    borderColor: meta.color,
+                    backgroundColor: 'rgba(255,255,255,0.02)',
+                    shadowColor: meta.glow,
+                    shadowOpacity: 0.55,
+                    shadowRadius: 10,
+                    shadowOffset: { width: 0, height: 0 },
+                  }}
+                >
+                  {/* Icon + FOCUS flag */}
+                  <View className="flex-row items-center justify-center">
                     <View
+                      className="h-7 w-7 items-center justify-center rounded-lg"
                       style={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: 6,
-                        backgroundColor: muscle.colorHex,
+                        borderWidth: 1,
+                        borderColor: muscle.colorHex,
+                        backgroundColor: `${muscle.colorHex}22`,
                       }}
-                    />
+                    >
+                      <View
+                        style={{
+                          width: 9,
+                          height: 9,
+                          borderRadius: 4.5,
+                          backgroundColor: muscle.colorHex,
+                        }}
+                      />
+                    </View>
+                    {isFocus ? (
+                      <View
+                        className="ml-1 h-2 w-2 rounded-full"
+                        style={{
+                          backgroundColor: '#F97316',
+                          shadowColor: '#F97316',
+                          shadowOpacity: 0.9,
+                          shadowRadius: 4,
+                          shadowOffset: { width: 0, height: 0 },
+                        }}
+                      />
+                    ) : null}
                   </View>
 
+                  {/* Muscle name */}
                   <Text
-                    className="ml-3 flex-1 text-base font-bold tracking-wider text-slate-100"
+                    className="mt-1 text-center text-[10px] font-bold text-slate-100"
                     numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
                   >
                     {muscle.nameEn}
                   </Text>
 
-                  {isFocus ? (
-                    <View
-                      className="mr-2 items-center justify-center rounded-md px-2 py-0.5"
-                      style={{
-                        borderWidth: 1,
-                        borderColor: '#F97316',
-                        backgroundColor: 'rgba(249,115,22,0.15)',
-                        shadowColor: '#F97316',
-                        shadowOpacity: 0.8,
-                        shadowRadius: 6,
-                        shadowOffset: { width: 0, height: 0 },
-                      }}
-                    >
-                      <Text
-                        className="text-center text-[9px] font-black uppercase tracking-[2px] text-orange-300"
-                        style={{
-                          textShadowColor: '#F97316',
-                          textShadowRadius: 4,
-                        }}
-                      >
-                        FOCUS
-                      </Text>
-                    </View>
-                  ) : null}
-
+                  {/* Tier chip */}
                   <View
-                    className="flex-row items-center justify-center rounded-lg px-2 py-0.5"
+                    className="mt-1 flex-row items-center rounded-md px-1 py-[1px]"
                     style={{
                       borderWidth: 1,
                       borderColor: meta.color,
                       backgroundColor: `${meta.color}1A`,
                     }}
                   >
-                    <Shield size={10} color={meta.color} strokeWidth={2.25} />
+                    <Shield size={7} color={meta.color} strokeWidth={2.5} />
                     <Text
-                      className="ml-1 text-center text-[10px] font-black uppercase tracking-widest"
+                      className="ml-0.5 text-center text-[8px] font-black uppercase"
+                      numberOfLines={1}
                       style={{
                         color: meta.color,
                         textShadowColor: meta.glow,
-                        textShadowRadius: 4,
+                        textShadowRadius: 3,
+                        letterSpacing: 0.5,
                       }}
                     >
-                      {meta.label}
+                      {meta.shortLabel}
                     </Text>
                   </View>
-                </View>
 
-                <View className="mt-3">
-                  <GradientBar
-                    percent={p.ratio * 100}
-                    height={5}
-                    startColor="#1e40af"
-                    endColor={meta.glow}
-                  />
-                  <View className="mt-1.5 flex-row items-center justify-between">
-                    <Text className="text-[10px] text-slate-500">
-                      {Math.round(stats.xp).toLocaleString()} XP
-                    </Text>
-                    <Text
-                      className="text-[10px] font-semibold"
-                      style={{ color: meta.color }}
-                    >
-                      {p.next ? `→ ${TIER_META[p.next].label}` : 'Tier max'}
-                    </Text>
+                  {/* Progress bar */}
+                  <View className="mt-1.5 w-full">
+                    <GradientBar
+                      percent={p.ratio * 100}
+                      height={3}
+                      startColor="#1e40af"
+                      endColor={meta.glow}
+                    />
                   </View>
+
+                  {/* XP */}
+                  <Text
+                    className="mt-1 text-center text-[9px] text-slate-500"
+                    numberOfLines={1}
+                  >
+                    {stats.xp >= 1000
+                      ? `${(stats.xp / 1000).toFixed(1)}k`
+                      : `${Math.round(stats.xp)}`} XP
+                  </Text>
                 </View>
               </View>
             );

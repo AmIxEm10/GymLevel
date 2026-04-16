@@ -312,7 +312,7 @@ function PortalCard({
   return (
     <Pressable
       onPress={onSelect}
-      className="rounded-3xl bg-black/60 p-4 active:opacity-85"
+      className="rounded-3xl bg-[#020617]/60 p-4 active:opacity-85"
       style={{
         borderWidth: 2,
         borderColor: rankMeta.color,
@@ -532,7 +532,7 @@ function CreateTemplateModal({
       animationType="slide"
       onRequestClose={close}
     >
-      <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-black">
+      <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-[#020617]">
         <View className="flex-1">
           {/* Header */}
           <View className="flex-row items-center justify-between border-b border-slate-800 px-5 py-4">
@@ -659,7 +659,7 @@ function CreateTemplateModal({
           </ScrollView>
 
           {/* Footer — sticky save button */}
-          <View className="border-t border-slate-800 bg-black/80 px-5 py-4">
+          <View className="border-t border-slate-800 bg-[#020617]/80 px-5 py-4">
             <Pressable
               onPress={save}
               disabled={!canSave}

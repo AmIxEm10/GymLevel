@@ -9,7 +9,7 @@ import {
   Trophy,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -65,11 +65,15 @@ const DIFFICULTY_LABEL: Record<QuestDifficulty, string> = {
 // Screen
 // ---------------------------------------------------------------------------
 
+type QuestTab = 'daily' | 'challenges' | 'secret';
+
 export default function QuestsScreen() {
   const profile = useAppStore(selectProfile);
   const activeQuests = useAppStore(selectActiveQuests);
   const claimChallenge = useAppStore(s => s.claimChallenge);
   const displayName = profile.nickname?.trim() ? profile.nickname : 'Chasseur';
+
+  const [tab, setTab] = useState<QuestTab>('daily');
 
   const activeCount = activeQuests.filter(q => q.status === 'active').length;
   const completedCount = activeQuests.filter(q => q.status === 'completed').length;
@@ -144,7 +148,49 @@ export default function QuestsScreen() {
           </Pressable>
         </View>
 
+        {/* =========================================== TAB PICKER */}
+        <View className="mx-5 mb-4 flex-row rounded-full border border-blue-500/30 bg-white/[0.03] p-1" style={{ gap: 6 }}>
+          {([
+            { id: 'daily',      label: 'Quotidien' },
+            { id: 'challenges', label: 'Défis' },
+            { id: 'secret',     label: 'Secrets' },
+          ] as const).map(t => {
+            const active = tab === t.id;
+            return (
+              <Pressable
+                key={t.id}
+                onPress={() => setTab(t.id)}
+                className="flex-1 items-center justify-center rounded-full py-2 active:opacity-70"
+                style={{
+                  backgroundColor: active ? 'rgba(168,85,247,0.25)' : 'transparent',
+                  borderWidth: active ? 1 : 0,
+                  borderColor: '#A855F7',
+                  shadowColor: active ? '#A855F7' : 'transparent',
+                  shadowOpacity: active ? 0.7 : 0,
+                  shadowRadius: active ? 10 : 0,
+                  shadowOffset: { width: 0, height: 0 },
+                }}
+              >
+                <Text
+                  className={`text-center text-[11px] font-black uppercase tracking-[2px] ${
+                    active ? 'text-purple-200' : 'text-slate-500'
+                  }`}
+                  numberOfLines={1}
+                  style={
+                    active
+                      ? { textShadowColor: '#A855F7', textShadowRadius: 8 }
+                      : undefined
+                  }
+                >
+                  {t.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         {/* =========================================== CHALLENGES (Rank A/S) */}
+        {tab === 'challenges' ? (
         <View className="px-5 pb-6">
           <View className="flex-row items-end justify-between">
             <View>
@@ -251,8 +297,10 @@ export default function QuestsScreen() {
             })}
           </View>
         </View>
+        ) : null}
 
         {/* =========================================== DAILY QUESTS */}
+        {tab === 'daily' ? (
         <View className="px-5 pb-10">
           <View className="flex-row items-end justify-between">
             <View>
@@ -293,6 +341,63 @@ export default function QuestsScreen() {
             Échéance : prochaine rotation du Système à 04:00 locale.
           </Text>
         </View>
+        ) : null}
+
+        {/* =========================================== SECRETS */}
+        {tab === 'secret' ? (
+          <View className="px-5 pb-10">
+            <View className="flex-row items-end justify-between">
+              <View>
+                <Text
+                  className="text-lg font-bold tracking-[2px] text-slate-100"
+                  style={{ textShadowColor: '#A855F7', textShadowRadius: 8 }}
+                >
+                  QUÊTES SECRÈTES
+                </Text>
+                <View className="mt-1 h-[1px] w-16 bg-purple-500/70" />
+              </View>
+              <Text className="text-[10px] uppercase tracking-widest text-slate-500">
+                {profile.completedSecretQuests.length} découvertes
+              </Text>
+            </View>
+
+            <Text className="mt-3 text-center text-[11px] italic leading-relaxed text-slate-500">
+              « Les quêtes secrètes n'apparaissent au Système qu'une fois
+              déclenchées. Entraîne-toi, explore des limites, et la Vérité
+              se révèlera d'elle-même… »
+            </Text>
+
+            {profile.completedSecretQuests.length === 0 ? (
+              <View className="mt-6 items-center rounded-2xl border border-dashed border-purple-500/40 bg-purple-500/[0.06] p-6">
+                <Text className="text-center text-[10px] uppercase tracking-widest text-purple-300/70">
+                  Aucune révélation à ce jour
+                </Text>
+              </View>
+            ) : (
+              <View className="mt-4 gap-2">
+                {profile.completedSecretQuests.map(id => (
+                  <View
+                    key={id}
+                    className="rounded-xl border border-purple-500/50 bg-purple-500/10 p-3"
+                    style={{
+                      shadowColor: '#A855F7',
+                      shadowOpacity: 0.55,
+                      shadowRadius: 10,
+                      shadowOffset: { width: 0, height: 0 },
+                    }}
+                  >
+                    <Text className="text-[9px] font-black uppercase tracking-widest text-purple-300">
+                      ◆ Secret découvert
+                    </Text>
+                    <Text className="mt-0.5 text-sm font-bold text-slate-100">
+                      {id}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

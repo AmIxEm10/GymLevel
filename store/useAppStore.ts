@@ -52,6 +52,7 @@ import { getActiveSets } from '@/data/itemSets';
 import {
   BODYWEIGHT_MAX_KG,
   BODYWEIGHT_MIN_KG,
+  MAX_SET_MULTIPLIER,
   STREAK_MAX_BONUS_DAYS,
   STREAK_XP_BONUS_PER_DAY,
 } from '@/constants/gamification';
@@ -632,6 +633,8 @@ export const useAppStore = create<AppState>()(
           if (filter?.category && filter.category !== exercise.category) continue;
           setMult *= set.effect.multiplier;
         }
+        // Cap the stacked set bonus (prevents runaway panoplies).
+        setMult = Math.min(setMult, MAX_SET_MULTIPLIER);
 
         const extraMult = titleMult * setMult;
         if (extraMult !== 1.0) {
@@ -991,15 +994,50 @@ export const useAppStore = create<AppState>()(
           ...(finalized.secretQuestsTriggered ?? []),
           ...profileWithLoot.completedSecretQuests,
         ]);
+        // Aggregated session metrics used by the new session-level triggers.
+        const totalSessionReps = finalized.exercises.reduce(
+          (sum, we) =>
+            sum +
+            we.sets.reduce(
+              (s, st) => (st.isWarmup ? s : s + st.reps),
+              0,
+            ),
+          0,
+        );
+        const startHour = new Date(finalized.startedAt).getHours();
+        const durationSec = finalized.durationSeconds ?? 0;
+        const currentStreakAfter = profileWithLoot.currentStreak;
+
         const firedFromSession: string[] = [];
         for (const sq of SECRET_QUESTS) {
           if (alreadyFired.has(sq.id)) continue;
-          if (
-            sq.trigger.kind === 'session_volume' &&
-            finalized.totalVolume >= sq.trigger.minVolume
-          ) {
-            firedFromSession.push(sq.id);
+          const t = sq.trigger;
+          let match = false;
+          switch (t.kind) {
+            case 'session_volume':
+              match = finalized.totalVolume >= t.minVolume;
+              break;
+            case 'session_reps':
+              match = totalSessionReps >= t.minReps;
+              break;
+            case 'streak_days':
+              match = currentStreakAfter >= t.minDays;
+              break;
+            case 'late_workout':
+              match = startHour >= t.minStartHour;
+              break;
+            case 'early_workout':
+              match = startHour <= t.maxStartHour;
+              break;
+            case 'short_session':
+              match =
+                durationSec > 0 &&
+                durationSec <= t.maxSeconds &&
+                finalized.totalVolume >= t.minVolume;
+              break;
+            // per-set triggers are handled inside addSet() — ignore here
           }
+          if (match) firedFromSession.push(sq.id);
         }
         const allFiredSecretIds = [
           ...(finalized.secretQuestsTriggered ?? []),
@@ -1355,7 +1393,7 @@ export const useAppStore = create<AppState>()(
                   ...stats,
                   volumeLast24h: Math.max(0, stats.volumeLast24h * (1 - reduction)),
                   status: nextStatus,
-                  statusUntil: nextStatus === 'epuise' ? stats.statusUntil : null,
+                  statusUntil: null,
                 };
               }
               profile = { ...profile, muscleStats: nextMuscleStats };

@@ -138,7 +138,7 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-black">
+    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-[#020617]">
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 140 }}
@@ -217,7 +217,7 @@ export default function OnboardingScreen() {
       </ScrollView>
 
       {/* Footer actions */}
-      <View className="flex-row items-center justify-between border-t border-slate-800 bg-black/90 px-5 py-4">
+      <View className="flex-row items-center justify-between border-t border-slate-800 bg-[#020617]/90 px-5 py-4">
         <Pressable
           onPress={handleBack}
           disabled={step === 'identity'}
@@ -587,7 +587,7 @@ function AcceptTermsModal({
         }}
       >
         <View
-          className="w-full max-w-md rounded-3xl bg-black/90 p-6"
+          className="w-full max-w-md rounded-3xl bg-[#020617]/90 p-6"
           style={{
             borderWidth: 2,
             borderColor: '#60A5FA',

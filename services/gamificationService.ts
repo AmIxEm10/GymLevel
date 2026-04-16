@@ -44,6 +44,7 @@ import {
   VOLUME_TO_XP_RATIO,
   WARMUP_XP_MULTIPLIER,
 } from '@/constants/gamification';
+import { getMuscleTier, tierRankIndex } from '@/data/muscleTiers';
 
 // ===========================================================================
 // Level curve
@@ -487,45 +488,55 @@ export function updatePersonalRecord(
 // ===========================================================================
 
 /**
- * Aggregated "Power Level" (v2) — summary of raw power + conditioning.
+ * Aggregated "Power Level" (v3) — aligned with the spec formula:
  *
- *   base    = (totalVolume / 100) + (level × 50) + (Σ muscle.xp / 10)
- *   force/w = (peakWeightPR / bodyweight) × 500   (relative strength)
- *   cardio  = (vo2max / 2) + max(0, 70 − restingBpm) × 2
+ *   base       = (totalVolumeLifetime / 100)
+ *              + (level × 100)
+ *              + (Σ tierRankIndex(muscle) × 50)
+ *   strength×  = 1 + max(0, peakWeight/bw − 1) × 0.2   (relative strength)
+ *   cardio×    = 1 + vo2Bonus + rhrBonus               (conditioning)
+ *     · vo2Bonus = clamp((vo2 − 30)/50, 0..1) × 0.15
+ *     · rhrBonus = clamp((70 − rbpm)/20, 0..1) × 0.10
  *
- *   PL = round(base + force/w + cardio)
+ *   PL = round(base × strength× × cardio×)
  *
- * The cardio / strength components only contribute when their inputs are
- * present on the profile (updateBiometrics / PR tracking), so a fresh
- * profile falls back cleanly to the V1 formula.
+ * Cardio / strength components degrade gracefully to ×1 when their
+ * inputs are missing (fresh profile, no biometrics, no PR).
  */
 export function calculatePowerLevel(profile: UserProfile): number {
   const volumeComp = profile.totalVolumeLifetime / 100;
-  const levelComp = profile.level * 50;
-  let muscleComp = 0;
-  for (const m of Object.values(profile.muscleStats)) muscleComp += m.xp;
-  muscleComp = muscleComp / 10;
-  const base = volumeComp + levelComp + muscleComp;
+  const levelComp = profile.level * 100;
 
-  // Relative strength (force / weight). Uses the best single-set weight
-  // across all tracked PRs (peakWeightPR) vs the current bodyweight.
+  // Σ muscle tier rank indices × 50 — reflects the rank ladder, not raw XP.
+  let rankComp = 0;
+  for (const m of Object.values(profile.muscleStats)) {
+    rankComp += tierRankIndex(getMuscleTier(m.xp));
+  }
+  rankComp = rankComp * 50;
+
+  const base = volumeComp + levelComp + rankComp;
+
+  // ---- Multipliers ----------------------------------------------------
+
+  // Relative strength — best single-set weight vs current bodyweight.
   let peakWeight = 0;
   for (const pr of Object.values(profile.personalRecords)) {
     if (pr.bestWeight > peakWeight) peakWeight = pr.bestWeight;
   }
   const bw = profile.preferences.bodyweightKg ?? 0;
-  const forceWeight =
-    bw > 0 && peakWeight > 0 ? (peakWeight / bw) * 500 : 0;
+  const strengthMult =
+    bw > 0 && peakWeight > 0
+      ? 1 + Math.max(0, peakWeight / bw - 1) * 0.2
+      : 1;
 
-  // Cardio fitness — VO2max contributes directly, and a low resting
-  // heart rate (≤ 70 bpm) adds a small bonus.
+  // Cardio — VO2max (baseline 30, saturates at 80) + low RHR (< 70 bpm).
   const vo2 = profile.preferences.vo2max ?? 0;
   const rbpm = profile.preferences.restingBpm ?? 0;
-  const cardioFromVO2 = vo2 > 0 ? vo2 / 2 : 0;
-  const cardioFromHR = rbpm > 0 ? Math.max(0, 70 - rbpm) * 2 : 0;
-  const cardio = cardioFromVO2 + cardioFromHR;
+  const vo2Bonus = vo2 > 0 ? Math.min(1, Math.max(0, (vo2 - 30) / 50)) * 0.15 : 0;
+  const rhrBonus = rbpm > 0 ? Math.min(1, Math.max(0, (70 - rbpm) / 20)) * 0.10 : 0;
+  const cardioMult = 1 + vo2Bonus + rhrBonus;
 
-  return Math.round(base + forceWeight + cardio);
+  return Math.round(base * strengthMult * cardioMult);
 }
 
 export function applySetBreakdownToProfile(

@@ -142,7 +142,7 @@ export default function WorkoutActiveScreen() {
 
   if (!activeSession) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-black">
+      <SafeAreaView className="flex-1 items-center justify-center bg-[#020617]">
         <Text className="text-sm uppercase tracking-[4px] text-slate-500">
           Initialisation de la séance…
         </Text>
@@ -236,7 +236,7 @@ export default function WorkoutActiveScreen() {
   // ------------- Render -------------
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-black">
+    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-[#020617]">
       <View className="flex-1">
         {/* Header: chrono + exit */}
         <View className="flex-row items-center justify-between px-5 pt-2 pb-3">
