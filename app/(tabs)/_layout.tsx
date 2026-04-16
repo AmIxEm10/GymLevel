@@ -1,9 +1,17 @@
 import { Tabs } from 'expo-router';
-import { Backpack, ScrollText, User } from 'lucide-react-native';
+import {
+  Backpack,
+  Dumbbell,
+  ScrollText,
+  Trophy,
+  User,
+} from 'lucide-react-native';
 
 /**
  * Tabs layout.
  * - index     → Quêtes (home)
+ * - ranking   → Ranking (leaderboard mondial)
+ * - muscles   → Muscle Rankings
  * - inventory → Inventaire
  * - profile   → Statut
  */
@@ -28,6 +36,24 @@ export default function TabsLayout() {
           title: 'Quêtes',
           tabBarIcon: ({ color, size }) => (
             <ScrollText color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="ranking"
+        options={{
+          title: 'Ranking',
+          tabBarIcon: ({ color, size }) => (
+            <Trophy color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="muscles"
+        options={{
+          title: 'Muscles',
+          tabBarIcon: ({ color, size }) => (
+            <Dumbbell color={color} size={size} />
           ),
         }}
       />

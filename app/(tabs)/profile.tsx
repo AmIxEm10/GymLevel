@@ -27,6 +27,7 @@ import { RANK_INFO, RankEmblem, computeRank } from '@/components/RankEmblem';
 import { RARITY_PALETTE } from '@/components/InventorySlot';
 import { ITEM_SETS, getActiveSets, setProgress } from '@/data/itemSets';
 import { TITLES, getTitle } from '@/data/titles';
+import { calculatePowerLevel } from '@/services/gamificationService';
 import {
   selectEquipped,
   selectPlayerClass,
@@ -63,6 +64,7 @@ export default function ProfileScreen() {
 
   const activeTitle = getTitle(profile.activeTitleId);
   const activeSets = useMemo(() => getActiveSets(equipped), [equipped]);
+  const powerLevel = useMemo(() => calculatePowerLevel(profile), [profile]);
   const setFatigueReduction = activeSets.reduce(
     (sum, s) => (s.effect.kind === 'fatigue_reduction' ? sum + s.effect.points : sum),
     0,
@@ -192,6 +194,32 @@ export default function ProfileScreen() {
                   « {activeTitle.name} »
                 </Text>
               ) : null}
+
+              {/* Power Level aura — shimmer chip */}
+              <View
+                className="mt-2 flex-row items-center rounded-lg border border-cyan-400/70 bg-cyan-500/10 px-2.5 py-1 self-start"
+                style={{
+                  shadowColor: '#22D3EE',
+                  shadowOpacity: 0.9,
+                  shadowRadius: 14,
+                  shadowOffset: { width: 0, height: 0 },
+                }}
+              >
+                <Text
+                  className="text-[9px] font-black uppercase tracking-[4px] text-cyan-200"
+                  style={{ textShadowColor: '#22D3EE', textShadowRadius: 8 }}
+                >
+                  Power Level
+                </Text>
+                <Text
+                  className="ml-2 text-sm font-black tracking-wider text-cyan-100"
+                  style={{ textShadowColor: '#22D3EE', textShadowRadius: 10 }}
+                >
+                  {powerLevel >= 1000
+                    ? `${(powerLevel / 1000).toFixed(1)}k`
+                    : powerLevel.toLocaleString()}
+                </Text>
+              </View>
 
               <Text className="mt-3 text-[9px] uppercase tracking-[4px] text-cyan-400/70">
                 NIVEAU

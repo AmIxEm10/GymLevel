@@ -34,6 +34,8 @@ import type {
   WorkoutTemplate,
 } from '@/types';
 import { TITLES_BY_ID } from '@/data/titles';
+import { getMuscleTier, type MuscleTier } from '@/data/muscleTiers';
+import type { MuscleRankUp } from '@/components/MuscleRankUpModal';
 import { SECRET_QUESTS, SECRET_QUESTS_BY_ID } from '@/data/secretQuests';
 import {
   CHALLENGES,
@@ -270,6 +272,11 @@ interface AppState {
   claimChallenge: (challengeId: string) => void;
   dismissLastSecretQuest: () => void;
 
+  // --- Muscle Rank Up ----------------------------------------------------
+  /** Non-persisted — latest muscle rank promotion for the modal overlay. */
+  lastMuscleRankUp: MuscleRankUp | null;
+  dismissLastMuscleRankUp: () => void;
+
   // --- Templates ----------------------------------------------------------
   cloneTemplate: (templateId: string) => string | null;
   saveCustomTemplate: (payload: NewTemplatePayload) => string;
@@ -301,6 +308,7 @@ export const useAppStore = create<AppState>()(
       lastLootDrop: null,
       lastConsumed: null,
       lastSecretQuest: null,
+      lastMuscleRankUp: null,
 
       // -------------------------------------------------------------------
       // Lifecycle
@@ -576,6 +584,26 @@ export const useAppStore = create<AppState>()(
         // Apply to profile (XP + level + per-muscle stats)
         let nextProfile = applySetBreakdownToProfile(profile, breakdown, now);
 
+        // --- Muscle rank-up detection ------------------------------------
+        // Compare tiers pre vs post per muscle; fire the modal for the
+        // first muscle that crossed a threshold.
+        let rankUpEvent: MuscleRankUp | null = null;
+        for (const p of breakdown.perMuscle) {
+          const before = profile.muscleStats[p.muscleId].xp;
+          const after = nextProfile.muscleStats[p.muscleId].xp;
+          const fromTier = getMuscleTier(before);
+          const toTier = getMuscleTier(after);
+          if (fromTier !== toTier) {
+            rankUpEvent = {
+              muscleId: p.muscleId,
+              from: fromTier,
+              to: toTier,
+              at: now,
+            };
+            break;
+          }
+        }
+
         // 4bis) Update PRs if this set beats anything on record
         const effectiveW = effectiveSetWeight(newSet, exercise, bodyweight);
         const existingPr = nextProfile.personalRecords[exercise.id];
@@ -708,11 +736,14 @@ export const useAppStore = create<AppState>()(
           );
         }
 
-        set({
+        set(s => ({
           activeSession: nextSession,
           profile: nextProfile,
           activeQuests: quests,
-        });
+          // Surface the first rank-up of this set (if any). Only overwrite
+          // when a new event fires — an existing modal stays on screen.
+          lastMuscleRankUp: rankUpEvent ?? s.lastMuscleRankUp,
+        }));
       },
 
       updateSet: (workoutExerciseId, setId, patch) => {
@@ -1307,6 +1338,10 @@ export const useAppStore = create<AppState>()(
 
       dismissLastSecretQuest: () => {
         set({ lastSecretQuest: null });
+      },
+
+      dismissLastMuscleRankUp: () => {
+        set({ lastMuscleRankUp: null });
       },
 
       // -------------------------------------------------------------------

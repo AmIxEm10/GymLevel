@@ -466,6 +466,29 @@ export function updatePersonalRecord(
   };
 }
 
+// ===========================================================================
+// Power Level
+// ===========================================================================
+
+/**
+ * Aggregated "Power Level" — a single number meant to summarise the
+ * Chasseur's global strength relative to the rest of the world.
+ *
+ *   PL = (TotalVolume / 100) + (GlobalLevel * 50) + (Σ muscle.xp) / 10
+ *
+ * The last term is (sum of muscle XP across the 17 groups) / 10 — as each
+ * muscle contributes roughly proportional to its rank (muscle XP
+ * thresholds were designed for this scale).
+ */
+export function calculatePowerLevel(profile: UserProfile): number {
+  const volumeComp = profile.totalVolumeLifetime / 100;
+  const levelComp = profile.level * 50;
+  let muscleComp = 0;
+  for (const m of Object.values(profile.muscleStats)) muscleComp += m.xp;
+  muscleComp = muscleComp / 10;
+  return Math.round(volumeComp + levelComp + muscleComp);
+}
+
 export function applySetBreakdownToProfile(
   profile: UserProfile,
   breakdown: SetXpBreakdown,

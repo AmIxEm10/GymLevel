@@ -7,6 +7,7 @@ import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { LootDropModal } from '@/components/LootDropModal';
+import { MuscleRankUpModal } from '@/components/MuscleRankUpModal';
 import { SecretQuestModal } from '@/components/SecretQuestModal';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -59,6 +60,7 @@ export default function RootLayout() {
         {/* Global overlays */}
         <LootDropModal />
         <SecretQuestModal />
+        <MuscleRankUpModal />
       </SafeAreaProvider>
     </View>
   );

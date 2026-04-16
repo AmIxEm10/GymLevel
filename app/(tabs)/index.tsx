@@ -116,6 +116,9 @@ export default function QuestsScreen() {
             Directives quotidiennes calibrées sur ton rang et ton niveau.
           </Text>
 
+          {/* Battle Pass — Season 1: L'Éveil */}
+          <SeasonPassBar profile={profile} />
+
           {/* Start workout CTA — routes to the template picker */}
           <Pressable
             onPress={() => router.push('/workout/selection')}
@@ -298,6 +301,121 @@ export default function QuestsScreen() {
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Season Pass bar — "Saison 1 : L'Éveil"
+// ---------------------------------------------------------------------------
+
+const SEASON_MAX_LEVEL = 20;
+const SEASON_XP_PER_LEVEL = 1000;
+
+interface SeasonReward {
+  level: number;
+  label: string;
+  rarity: 'common' | 'rare' | 'epic';
+}
+const SEASON_REWARDS: SeasonReward[] = [
+  { level: 5,  label: 'Gants · Commun',        rarity: 'common' },
+  { level: 10, label: 'Lame de l\'Aube · Rare', rarity: 'rare' },
+  { level: 15, label: 'Titre : Éveillé',        rarity: 'epic' },
+  { level: 20, label: 'Relique · Épique',       rarity: 'epic' },
+];
+
+function SeasonPassBar({
+  profile,
+}: {
+  profile: ReturnType<typeof selectProfile>;
+}) {
+  // Simple derivation: every 1000 XP of progression = 1 season level.
+  const seasonXp = Math.min(
+    SEASON_MAX_LEVEL * SEASON_XP_PER_LEVEL,
+    profile.totalWorkouts * 250 + profile.completedChallenges.length * 500,
+  );
+  const seasonLevel = Math.min(
+    SEASON_MAX_LEVEL,
+    Math.floor(seasonXp / SEASON_XP_PER_LEVEL),
+  );
+  const seasonRatio =
+    seasonXp < SEASON_MAX_LEVEL * SEASON_XP_PER_LEVEL
+      ? (seasonXp % SEASON_XP_PER_LEVEL) / SEASON_XP_PER_LEVEL
+      : 1;
+
+  return (
+    <View
+      className="mt-4 rounded-2xl border border-purple-500/40 bg-white/[0.03] p-3"
+      style={{
+        shadowColor: '#A855F7',
+        shadowOpacity: 0.55,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 0 },
+      }}
+    >
+      <View className="flex-row items-center justify-between">
+        <View>
+          <Text
+            className="text-[9px] font-bold uppercase tracking-[4px] text-purple-300"
+            style={{ textShadowColor: '#A855F7', textShadowRadius: 6 }}
+          >
+            SAISON 1 · L'ÉVEIL
+          </Text>
+          <Text className="text-base font-black text-slate-100">
+            Niveau {seasonLevel}
+            <Text className="text-xs font-normal text-slate-500">
+              {' '}/ {SEASON_MAX_LEVEL}
+            </Text>
+          </Text>
+        </View>
+        <Text className="text-[10px] text-slate-500">
+          {seasonXp.toLocaleString()} pts
+        </Text>
+      </View>
+
+      <View className="mt-2">
+        <GradientBar
+          percent={seasonRatio * 100}
+          height={6}
+          startColor="#6366F1"
+          endColor="#A855F7"
+        />
+      </View>
+
+      <View className="mt-3 flex-row gap-1.5">
+        {SEASON_REWARDS.map(r => {
+          const unlocked = seasonLevel >= r.level;
+          return (
+            <View
+              key={r.level}
+              className="flex-1 rounded-lg border px-2 py-1.5"
+              style={{
+                borderColor: unlocked ? '#A855F7' : '#334155',
+                backgroundColor: unlocked
+                  ? 'rgba(168,85,247,0.10)'
+                  : 'rgba(255,255,255,0.02)',
+                opacity: unlocked ? 1 : 0.55,
+              }}
+            >
+              <Text
+                className="text-[9px] font-black uppercase tracking-widest"
+                style={{
+                  color: unlocked ? '#C084FC' : '#64748B',
+                }}
+              >
+                Nv. {r.level}
+              </Text>
+              <Text
+                className="mt-0.5 text-[10px]"
+                numberOfLines={1}
+                style={{ color: unlocked ? '#E2E8F0' : '#64748B' }}
+              >
+                {r.label}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
 
 function QuestCard({ quest }: { quest: Quest }) {
   const claimQuestReward = useAppStore(s => s.claimQuestReward);
