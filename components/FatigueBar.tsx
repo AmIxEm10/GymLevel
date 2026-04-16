@@ -15,14 +15,28 @@ const STATUS_WEIGHT: Record<MuscleStatus, number> = {
 /**
  * Compute a single "global fatigue" (0–100) as the weighted average across
  * all tracked muscle groups. Exhausted muscles dominate the score.
+ *
+ * Optional modifiers:
+ *   - `activeTitleId`: "Ami des Muscles" subtracts 10 pts.
+ *   - `externalReduction`: additional flat points removed (e.g. active
+ *     set-bonus "Poids Plume" passes 15 pts here).
  */
 export function computeGlobalFatigue(
   muscleStats: Record<string, MuscleGroupStats>,
+  activeTitleId?: string | null,
+  externalReduction?: number,
 ): number {
   const values = Object.values(muscleStats);
   if (values.length === 0) return 0;
   const sum = values.reduce((acc, s) => acc + STATUS_WEIGHT[s.status], 0);
-  return Math.round(sum / values.length);
+  let result = Math.round(sum / values.length);
+  if (activeTitleId === 'ami_muscles') {
+    result = Math.max(0, result - 10);
+  }
+  if (externalReduction && externalReduction > 0) {
+    result = Math.max(0, result - externalReduction);
+  }
+  return result;
 }
 
 interface Props {

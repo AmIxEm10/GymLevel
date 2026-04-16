@@ -14,6 +14,7 @@ import { Animated, Easing, Pressable, ScrollView, Text, View } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GradientBar } from '@/components/GradientBar';
+import { CHALLENGES, challengeProgress } from '@/data/challenges';
 import { RANK_META } from '@/data/ranks';
 import {
   selectActiveQuests,
@@ -67,6 +68,7 @@ const DIFFICULTY_LABEL: Record<QuestDifficulty, string> = {
 export default function QuestsScreen() {
   const profile = useAppStore(selectProfile);
   const activeQuests = useAppStore(selectActiveQuests);
+  const claimChallenge = useAppStore(s => s.claimChallenge);
   const displayName = profile.nickname?.trim() ? profile.nickname : 'Chasseur';
 
   const activeCount = activeQuests.filter(q => q.status === 'active').length;
@@ -137,6 +139,114 @@ export default function QuestsScreen() {
               Démarrer une séance
             </Text>
           </Pressable>
+        </View>
+
+        {/* =========================================== CHALLENGES (Rank A/S) */}
+        <View className="px-5 pb-6">
+          <View className="flex-row items-end justify-between">
+            <View>
+              <Text
+                className="text-lg font-bold tracking-[2px] text-slate-100"
+                style={{ textShadowColor: '#A855F7', textShadowRadius: 8 }}
+              >
+                DÉFIS
+              </Text>
+              <View className="mt-1 h-[1px] w-16 bg-purple-500/70" />
+            </View>
+            <Text className="text-[10px] uppercase tracking-widest text-slate-500">
+              {profile.completedChallenges.length} / {CHALLENGES.length} complétés
+            </Text>
+          </View>
+
+          <View className="mt-3 gap-2">
+            {CHALLENGES.map(ch => {
+              const prog = challengeProgress(ch, profile);
+              const pct = Math.min(
+                100,
+                Math.round((prog / Math.max(1, ch.target)) * 100),
+              );
+              const done = profile.completedChallenges.includes(ch.id);
+              const rankMeta = RANK_META[ch.rank];
+              return (
+                <View
+                  key={ch.id}
+                  className="rounded-2xl border bg-white/[0.03] p-3"
+                  style={{
+                    borderColor: rankMeta.color,
+                    shadowColor: rankMeta.glow,
+                    shadowOpacity: done ? 0.85 : 0.35,
+                    shadowRadius: done ? 18 : 10,
+                    shadowOffset: { width: 0, height: 0 },
+                  }}
+                >
+                  <View className="flex-row items-start justify-between">
+                    <View className="flex-row items-center">
+                      <View
+                        className="rounded-md px-1.5 py-0.5"
+                        style={{
+                          borderWidth: 1,
+                          borderColor: rankMeta.color,
+                          backgroundColor: 'rgba(255,255,255,0.04)',
+                        }}
+                      >
+                        <Text
+                          className="text-[9px] font-black uppercase tracking-[3px]"
+                          style={{
+                            color: rankMeta.color,
+                            textShadowColor: rankMeta.glow,
+                            textShadowRadius: 4,
+                          }}
+                        >
+                          DÉFI · {ch.rank}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text className="text-[10px] font-bold text-amber-300">
+                      +{ch.xpReward} XP
+                    </Text>
+                  </View>
+                  <Text className="mt-1.5 text-sm font-bold text-slate-100">
+                    {ch.name}
+                  </Text>
+                  <Text className="text-[11px] leading-snug text-slate-400">
+                    {ch.description}
+                  </Text>
+
+                  <View className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                    <View
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${pct}%`,
+                        backgroundColor: done ? '#FBBF24' : rankMeta.color,
+                      }}
+                    />
+                  </View>
+                  <View className="mt-1 flex-row items-center justify-between">
+                    <Text className="text-[10px] text-slate-500">
+                      {Math.round(prog).toLocaleString()} / {ch.target.toLocaleString()} {ch.unit}
+                    </Text>
+                    {done ? (
+                      <Pressable
+                        onPress={() => claimChallenge(ch.id)}
+                        className="rounded-md border border-amber-400/60 bg-amber-500/20 px-2 py-0.5 active:opacity-70"
+                      >
+                        <Text className="text-[10px] font-black uppercase tracking-widest text-amber-200">
+                          ACCOMPLI
+                        </Text>
+                      </Pressable>
+                    ) : (
+                      <Text
+                        className="text-[10px] font-semibold"
+                        style={{ color: rankMeta.color }}
+                      >
+                        {pct}%
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
         </View>
 
         {/* =========================================== DAILY QUESTS */}

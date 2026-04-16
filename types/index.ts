@@ -174,6 +174,11 @@ export interface WorkoutSession {
   totalXpGained: number;
   xpByMuscle: Partial<Record<MuscleGroupId, number>>;
 
+  /** PRs broken during this session (drives "Briseur de Limites" title). */
+  prsBrokenCount?: number;
+  /** Secret quest ids that fired during this session. */
+  secretQuestsTriggered?: string[];
+
   status: WorkoutStatus;
   notes?: string;
 }
@@ -565,6 +570,18 @@ export interface UserProfile {
   /** Owned + currently equipped loot. */
   inventory: Inventory;
 
+  // ---- Prestige & mystery --------------------------------------------------
+  /** Title ids the user has unlocked. */
+  unlockedTitles: string[];
+  /** Currently displayed title (id) — null = none. */
+  activeTitleId: string | null;
+  /** Secret-quest ids that have already fired (won't trigger again). */
+  completedSecretQuests: string[];
+  /** Challenge ids completed (Rank-A/S long-term goals). */
+  completedChallenges: string[];
+  /** Counter used by the "Ami des Muscles" title unlock. */
+  zeroFatigueSessionsCount: number;
+
   currentStreak: number;
   longestStreak: number;
   totalWorkouts: number;
@@ -610,7 +627,81 @@ export interface DeconditioningCheckResult {
 }
 
 // ===========================================================================
-// 10. STORE SHAPES (re-exported for convenience)
+// 10. TITLES / SECRET QUESTS / CHALLENGES — prestige & mystery layer
+// ===========================================================================
+
+/** Identifier of the passive effect granted by a Title. */
+export type TitleEffectId =
+  | 'morning_xp_boost'       // +10 % XP between 05:00 and 10:00
+  | 'recovery_boost_5'       // +5 % to the hourly recovery rate
+  | 'fatigue_reduction_10';  // -10 pts on the displayed global fatigue
+
+/** Condition that unlocks a Title. Evaluated at endSession(). */
+export type TitleUnlockCondition =
+  | { kind: 'session_ended_before_hour'; hour: number }
+  | { kind: 'session_prs'; minCount: number }
+  | { kind: 'zero_fatigue_sessions'; count: number };
+
+export interface Title {
+  id: string;
+  name: string;
+  description: string;
+  unlockHint: string;
+  effectDescription: string;
+  effectId: TitleEffectId;
+  /** Neon colour used when the title is shown under the nickname. */
+  colorHex: string;
+  condition: TitleUnlockCondition;
+}
+
+/** Trigger that fires a Secret Quest. */
+export type SecretQuestTrigger =
+  | { kind: 'single_set_reps'; exerciseId: string; minReps: number }
+  | { kind: 'single_set_weight'; exerciseId: string; minWeight: number }
+  | { kind: 'session_volume'; minVolume: number };
+
+export interface SecretQuestDef {
+  id: string;
+  name: string;
+  description: string;
+  /** Shown on the SecretQuestModal once unlocked. */
+  hint: string;
+  trigger: SecretQuestTrigger;
+  xpReward: number;
+  /** Rarity of the loot item dropped when the secret triggers. */
+  lootRarity: EquipmentRarity;
+  /** Optional title unlocked when this secret fires. */
+  titleIdReward?: string;
+}
+
+/** Payload emitted when a Secret Quest completes (for the modal overlay). */
+export interface SecretQuestDrop {
+  def: SecretQuestDef;
+  completedAt: number;
+  lootItemId?: string;
+}
+
+/** Metric tracked by a Challenge. Computed live from UserProfile. */
+export type ChallengeMetric =
+  | 'totalVolumeLifetime'
+  | 'longestStreak'
+  | 'totalWorkouts';
+
+export interface Challenge {
+  id: string;
+  name: string;
+  description: string;
+  metric: ChallengeMetric;
+  target: number;
+  unit: string;
+  xpReward: number;
+  titleIdReward?: string;
+  /** Rank label shown on the card (e.g. 'S' for Rank-S challenges). */
+  rank: 'A' | 'S';
+}
+
+// ===========================================================================
+// 11. STORE SHAPES (re-exported for convenience)
 // ===========================================================================
 
 export type NewSetPayload = Omit<WorkoutSet, 'id' | 'completedAt' | 'setNumber'>;

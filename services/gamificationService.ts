@@ -39,6 +39,8 @@ import {
   MAX_CLASS_MULTIPLIER,
   MAX_EQUIPMENT_MULTIPLIER,
   MAX_LEVEL,
+  MUSCLE_XP_MATURITY_REDUCTION,
+  MUSCLE_XP_MATURITY_THRESHOLD,
   VOLUME_TO_XP_RATIO,
   WARMUP_XP_MULTIPLIER,
 } from '@/constants/gamification';
@@ -384,7 +386,17 @@ export function applyXpToMuscle(
   volumeDelta: number,
   now: number,
 ): MuscleGroupStats {
-  const { level, xp, xpToNextLevel } = applyXpToLevel(stats.level, stats.xp, xpDelta);
+  // Diminishing returns: muscles past the maturity threshold take less XP.
+  let effectiveDelta = xpDelta;
+  if (xpDelta > 0 && stats.xp >= MUSCLE_XP_MATURITY_THRESHOLD) {
+    effectiveDelta = xpDelta * (1 - MUSCLE_XP_MATURITY_REDUCTION);
+  }
+
+  const { level, xp, xpToNextLevel } = applyXpToLevel(
+    stats.level,
+    stats.xp,
+    effectiveDelta,
+  );
   return {
     ...stats,
     xp,

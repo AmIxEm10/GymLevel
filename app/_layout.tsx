@@ -7,6 +7,7 @@ import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { LootDropModal } from '@/components/LootDropModal';
+import { SecretQuestModal } from '@/components/SecretQuestModal';
 import { useAppStore } from '@/store/useAppStore';
 
 /**
@@ -55,8 +56,9 @@ export default function RootLayout() {
           <Stack.Screen name="workout/recap" />
         </Stack>
 
-        {/* Global loot drop overlay */}
+        {/* Global overlays */}
         <LootDropModal />
+        <SecretQuestModal />
       </SafeAreaProvider>
     </View>
   );

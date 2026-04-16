@@ -18,8 +18,11 @@ import { GradientBar } from '@/components/GradientBar';
 import { EXERCISES_BY_ID } from '@/data/exercises';
 import {
   selectActiveSession,
+  selectEquipped,
+  selectProfile,
   useAppStore,
 } from '@/store/useAppStore';
+import { getActiveSets } from '@/data/itemSets';
 import type { WorkoutExercise, WorkoutSet } from '@/types';
 
 const DEFAULT_REST_SECONDS = 90;
@@ -38,6 +41,9 @@ function formatChrono(seconds: number): string {
 export default function WorkoutActiveScreen() {
   const activeSession = useAppStore(selectActiveSession);
   const addSet = useAppStore(s => s.addSet);
+  const profile = useAppStore(selectProfile);
+  const equipped = useAppStore(selectEquipped);
+  const activeSets = getActiveSets(equipped);
   const endSession = useAppStore(s => s.endSession);
   const abandonSession = useAppStore(s => s.abandonSession);
 
@@ -246,6 +252,44 @@ export default function WorkoutActiveScreen() {
             >
               {formatChrono(elapsed)}
             </Text>
+
+            {/* Buff chips — active set bonuses + active title */}
+            {activeSets.length > 0 ? (
+              <View className="ml-3 flex-row items-center">
+                {activeSets.map(s => (
+                  <View
+                    key={s.id}
+                    className="mr-1.5 rounded-md border px-1.5 py-0.5"
+                    style={{
+                      borderColor: s.colorHex,
+                      backgroundColor: 'rgba(255,255,255,0.04)',
+                      shadowColor: s.colorHex,
+                      shadowOpacity: 0.8,
+                      shadowRadius: 8,
+                      shadowOffset: { width: 0, height: 0 },
+                    }}
+                  >
+                    <Text
+                      className="text-[9px] font-black uppercase tracking-widest"
+                      style={{
+                        color: s.colorHex,
+                        textShadowColor: s.colorHex,
+                        textShadowRadius: 4,
+                      }}
+                    >
+                      ◆ {s.name}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            {profile.activeTitleId ? (
+              <View className="ml-1.5 rounded-md border border-amber-400/60 bg-amber-500/10 px-1.5 py-0.5">
+                <Text className="text-[9px] font-black uppercase tracking-widest text-amber-200">
+                  TITRE
+                </Text>
+              </View>
+            ) : null}
           </View>
           <Pressable
             onPress={cancelSession}

@@ -21,13 +21,18 @@ import type { Rank } from '@/data/ranks';
 // Rank → drop probability
 // ---------------------------------------------------------------------------
 
+/**
+ * Drop chance per dungeon rank.
+ * Bumped up (was E:0.20 D:0.30 C:0.45 B:0.60 A:0.80 S:0.95) to compensate
+ * for the XP nerf — the fun now comes from loot, not raw levels.
+ */
 export const DROP_CHANCE_BY_RANK: Record<Rank, number> = {
-  E: 0.20,
-  D: 0.30,
-  C: 0.45,
-  B: 0.60,
-  A: 0.80,
-  S: 0.95,
+  E: 0.35,
+  D: 0.50,
+  C: 0.65,
+  B: 0.80,
+  A: 0.92,
+  S: 1.00,
 };
 
 export const RARITY_BY_RANK: Record<Rank, EquipmentRarity> = {
@@ -82,9 +87,12 @@ export function rollEndSessionLoot(
   rank: Rank,
   classId: PlayerClassId,
   now: number,
+  /** Extra luck multiplier — e.g. set-bonus "Illusionniste". */
+  extraLuck: number = 1.0,
 ): EquipmentItem | null {
   const playerClass = getPlayerClass(classId);
-  const luck = playerClass.passiveEffects?.lootLuck ?? 1.0;
+  const luck =
+    (playerClass.passiveEffects?.lootLuck ?? 1.0) * extraLuck;
   const upgradeChance =
     playerClass.passiveEffects?.rarityUpgradeChance ?? 0;
 

@@ -26,11 +26,26 @@ import type {
   PlayerClass,
   PlayerClassId,
   Quest,
+  SecretQuestDrop,
+  Title,
   UserPreferences,
   UserProfile,
   WorkoutSession,
   WorkoutTemplate,
 } from '@/types';
+import { TITLES_BY_ID } from '@/data/titles';
+import { SECRET_QUESTS, SECRET_QUESTS_BY_ID } from '@/data/secretQuests';
+import {
+  CHALLENGES,
+  CHALLENGES_BY_ID,
+  challengeProgress,
+} from '@/data/challenges';
+import {
+  ITEM_POOL_BY_RARITY,
+  mintItem,
+  pickRandomTemplate,
+} from '@/data/equipment';
+import { getActiveSets } from '@/data/itemSets';
 
 import {
   BODYWEIGHT_MAX_KG,
@@ -147,6 +162,13 @@ function createDefaultProfile(now: number): UserProfile {
     totalVolumeLifetime: 0,
     lastWorkoutAt: null,
 
+    // Prestige & mystery
+    unlockedTitles: [],
+    activeTitleId: null,
+    completedSecretQuests: [],
+    completedChallenges: [],
+    zeroFatigueSessionsCount: 0,
+
     preferences: DEFAULT_PREFERENCES,
   };
 }
@@ -241,6 +263,13 @@ interface AppState {
   lastConsumed: ConsumableItem | null;
   dismissLastConsumed: () => void;
 
+  // --- Titles / Secret Quests / Challenges -------------------------------
+  /** Non-persisted — latest secret quest drop for the modal overlay. */
+  lastSecretQuest: SecretQuestDrop | null;
+  setActiveTitle: (titleId: string | null) => void;
+  claimChallenge: (challengeId: string) => void;
+  dismissLastSecretQuest: () => void;
+
   // --- Templates ----------------------------------------------------------
   cloneTemplate: (templateId: string) => string | null;
   saveCustomTemplate: (payload: NewTemplatePayload) => string;
@@ -271,6 +300,7 @@ export const useAppStore = create<AppState>()(
       needsOnboarding: true,
       lastLootDrop: null,
       lastConsumed: null,
+      lastSecretQuest: null,
 
       // -------------------------------------------------------------------
       // Lifecycle
@@ -513,7 +543,37 @@ export const useAppStore = create<AppState>()(
           profile.inventory.equipped,
         );
 
-        // 4) Apply to profile (XP + level + per-muscle stats)
+        // 4) Apply title multiplier (morning XP boost) BEFORE routing to
+        //    muscles. "Chasseur de l'Aube" + hour 05..10 → ×1.10.
+        let titleMult = 1.0;
+        if (profile.activeTitleId === 'chasseur_aube') {
+          const hour = new Date(now).getHours();
+          if (hour >= 5 && hour < 10) titleMult *= 1.10;
+        }
+
+        // 4bis) Active set-bonus multiplier (e.g. "Monarque de Fer" +10 %
+        //       on compound movements).
+        let setMult = 1.0;
+        for (const set of getActiveSets(profile.inventory.equipped)) {
+          if (set.effect.kind !== 'xp_boost') continue;
+          const filter = set.effect.filter;
+          if (filter?.movement && filter.movement !== exercise.movement) continue;
+          if (filter?.category && filter.category !== exercise.category) continue;
+          setMult *= set.effect.multiplier;
+        }
+
+        const extraMult = titleMult * setMult;
+        if (extraMult !== 1.0) {
+          breakdown.baseXp *= extraMult;
+          breakdown.totalXp *= extraMult;
+          breakdown.perMuscle = breakdown.perMuscle.map(p => ({
+            ...p,
+            xpBeforeStatus: p.xpBeforeStatus * extraMult,
+            xpAfterStatus: p.xpAfterStatus * extraMult,
+          }));
+        }
+
+        // Apply to profile (XP + level + per-muscle stats)
         let nextProfile = applySetBreakdownToProfile(profile, breakdown, now);
 
         // 4bis) Update PRs if this set beats anything on record
@@ -536,11 +596,42 @@ export const useAppStore = create<AppState>()(
           };
         }
 
+        // 4ter) Secret-quest per-set triggers — record any that fire now.
+        const firedSecretIds: string[] = [];
+        const alreadyFiredIds = new Set([
+          ...(sessionWithSet.secretQuestsTriggered ?? []),
+          ...nextProfile.completedSecretQuests,
+        ]);
+        for (const sq of SECRET_QUESTS) {
+          if (alreadyFiredIds.has(sq.id)) continue;
+          const t = sq.trigger;
+          if (
+            t.kind === 'single_set_reps' &&
+            t.exerciseId === exercise.id &&
+            newSet.reps >= t.minReps
+          ) {
+            firedSecretIds.push(sq.id);
+          } else if (
+            t.kind === 'single_set_weight' &&
+            t.exerciseId === exercise.id &&
+            effectiveW >= t.minWeight
+          ) {
+            firedSecretIds.push(sq.id);
+          }
+        }
+
         // 5) Update session aggregates
         const nextSession: WorkoutSession = {
           ...sessionWithSet,
           totalVolume: sessionWithSet.totalVolume + breakdown.volume,
           totalXpGained: sessionWithSet.totalXpGained + breakdown.totalXp,
+          prsBrokenCount:
+            (sessionWithSet.prsBrokenCount ?? 0) +
+            (improved && existingPr ? 1 : 0),
+          secretQuestsTriggered: [
+            ...(sessionWithSet.secretQuestsTriggered ?? []),
+            ...firedSecretIds,
+          ],
           xpByMuscle: breakdown.perMuscle.reduce(
             (acc, p) => {
               acc[p.muscleId] = (acc[p.muscleId] ?? 0) + p.xpAfterStatus;
@@ -735,14 +826,22 @@ export const useAppStore = create<AppState>()(
           const dungeonRank: Rank = template
             ? computeDungeonRank(template)
             : 'C';
+          // Set-bonus loot multiplier ("Illusionniste" → ×1.25)
+          let setLootLuck = 1.0;
+          for (const set of getActiveSets(profile.inventory.equipped)) {
+            if (set.effect.kind === 'loot_luck') {
+              setLootLuck *= set.effect.multiplier;
+            }
+          }
           dungeonLoot = rollEndSessionLoot(
             dungeonRank,
             profile.playerClassId,
             now,
+            setLootLuck,
           );
         }
 
-        const profileWithLoot: UserProfile = dungeonLoot
+        let profileWithLoot: UserProfile = dungeonLoot
           ? {
               ...nextProfile,
               inventory: {
@@ -752,6 +851,144 @@ export const useAppStore = create<AppState>()(
             }
           : nextProfile;
 
+        // --- Secret quests: session-level trigger ----------------------
+        const alreadyFired = new Set([
+          ...(finalized.secretQuestsTriggered ?? []),
+          ...profileWithLoot.completedSecretQuests,
+        ]);
+        const firedFromSession: string[] = [];
+        for (const sq of SECRET_QUESTS) {
+          if (alreadyFired.has(sq.id)) continue;
+          if (
+            sq.trigger.kind === 'session_volume' &&
+            finalized.totalVolume >= sq.trigger.minVolume
+          ) {
+            firedFromSession.push(sq.id);
+          }
+        }
+        const allFiredSecretIds = [
+          ...(finalized.secretQuestsTriggered ?? []),
+          ...firedFromSession,
+        ];
+
+        // Pick the first one (if any) to drop + reward — queueing multiples
+        // is a V2 polish.
+        let secretDrop: SecretQuestDrop | null = null;
+        if (allFiredSecretIds.length > 0) {
+          const firstId = allFiredSecretIds[0]!;
+          const def = SECRET_QUESTS_BY_ID[firstId];
+          if (def) {
+            // XP reward
+            const gs = applyXpToLevel(
+              profileWithLoot.level,
+              profileWithLoot.totalXp,
+              def.xpReward,
+            );
+            // Guaranteed loot at the specified rarity
+            const tpl = pickRandomTemplate(def.lootRarity);
+            let secretItem: EquipmentItem | null = null;
+            if (tpl) {
+              secretItem = mintItem(tpl, now, `secret:${def.id}`);
+            }
+
+            profileWithLoot = {
+              ...profileWithLoot,
+              totalXp: gs.xp,
+              level: gs.level,
+              xpToNextLevel: gs.xpToNextLevel,
+              completedSecretQuests: [
+                ...profileWithLoot.completedSecretQuests,
+                ...allFiredSecretIds,
+              ],
+              inventory: secretItem
+                ? {
+                    ...profileWithLoot.inventory,
+                    equipment: [
+                      secretItem,
+                      ...profileWithLoot.inventory.equipment,
+                    ],
+                  }
+                : profileWithLoot.inventory,
+            };
+
+            secretDrop = {
+              def,
+              completedAt: now,
+              lootItemId: secretItem?.id,
+            };
+          }
+        }
+
+        // --- Titles: evaluate unlock conditions ------------------------
+        const newlyUnlockedTitles: string[] = [];
+        const sessionPrs = finalized.prsBrokenCount ?? 0;
+        const sessionEndHour = new Date(finalized.endedAt ?? now).getHours();
+
+        // Pre-compute a preview of the global fatigue right now (pre-refresh)
+        // so we can detect "zero fatigue" sessions for the Ami des Muscles.
+        const previewedFatigue = (() => {
+          const refreshedForPreview = refreshAllMuscleStatuses(
+            profileWithLoot,
+            now,
+          );
+          const vals = Object.values(refreshedForPreview.muscleStats);
+          const weights = { frais: 0, actif: 25, fatigue: 65, epuise: 100 };
+          const sum = vals.reduce((s, v) => s + (weights[v.status] ?? 0), 0);
+          return Math.round(sum / Math.max(1, vals.length));
+        })();
+
+        // Increment the zero-fatigue counter if applicable (≤ 10 counts as clean).
+        const nextZeroFatigueCount =
+          previewedFatigue <= 10
+            ? profileWithLoot.zeroFatigueSessionsCount + 1
+            : profileWithLoot.zeroFatigueSessionsCount;
+        profileWithLoot = {
+          ...profileWithLoot,
+          zeroFatigueSessionsCount: nextZeroFatigueCount,
+        };
+
+        for (const title of Object.values(TITLES_BY_ID)) {
+          if (profileWithLoot.unlockedTitles.includes(title.id)) continue;
+          const c = title.condition;
+          let matches = false;
+          if (c.kind === 'session_ended_before_hour') {
+            matches = sessionEndHour < c.hour;
+          } else if (c.kind === 'session_prs') {
+            matches = sessionPrs >= c.minCount;
+          } else if (c.kind === 'zero_fatigue_sessions') {
+            matches = nextZeroFatigueCount >= c.count;
+          }
+          if (matches) newlyUnlockedTitles.push(title.id);
+        }
+        if (newlyUnlockedTitles.length > 0) {
+          profileWithLoot = {
+            ...profileWithLoot,
+            unlockedTitles: [
+              ...profileWithLoot.unlockedTitles,
+              ...newlyUnlockedTitles,
+            ],
+          };
+        }
+
+        // --- Challenges: mark completed when target reached -------------
+        const newlyCompletedChallenges: string[] = [];
+        for (const ch of CHALLENGES) {
+          if (profileWithLoot.completedChallenges.includes(ch.id)) continue;
+          const prog = challengeProgress(ch, profileWithLoot);
+          if (prog >= ch.target) {
+            newlyCompletedChallenges.push(ch.id);
+          }
+        }
+        if (newlyCompletedChallenges.length > 0) {
+          profileWithLoot = {
+            ...profileWithLoot,
+            completedChallenges: [
+              ...profileWithLoot.completedChallenges,
+              ...newlyCompletedChallenges,
+            ],
+          };
+        }
+
         set({
           activeSession: null,
           profile: profileWithLoot,
@@ -759,6 +996,8 @@ export const useAppStore = create<AppState>()(
           activeQuests: quests,
           // Setting lastLootDrop flips the global LootDropModal visible.
           lastLootDrop: dungeonLoot ?? null,
+          // Secret quest drop (if any) — global SecretQuestModal reads this.
+          lastSecretQuest: secretDrop,
         });
 
         // Re-evaluate statuses (maybe just pushed a muscle into 'epuise')
@@ -1026,6 +1265,51 @@ export const useAppStore = create<AppState>()(
       },
 
       // -------------------------------------------------------------------
+      // Titles / Secret Quests / Challenges
+      // -------------------------------------------------------------------
+      setActiveTitle: titleId => {
+        set(s => {
+          if (titleId !== null && !s.profile.unlockedTitles.includes(titleId)) {
+            return s;
+          }
+          return { profile: { ...s.profile, activeTitleId: titleId } };
+        });
+      },
+
+      claimChallenge: challengeId => {
+        const ch = CHALLENGES_BY_ID[challengeId];
+        if (!ch) return;
+        set(s => {
+          if (s.profile.completedChallenges.includes(challengeId)) return s;
+          const progress = challengeProgress(ch, s.profile);
+          if (progress < ch.target) return s;
+
+          // Award XP
+          const g = applyXpToLevel(
+            s.profile.level,
+            s.profile.totalXp,
+            ch.xpReward,
+          );
+          return {
+            profile: {
+              ...s.profile,
+              totalXp: g.xp,
+              level: g.level,
+              xpToNextLevel: g.xpToNextLevel,
+              completedChallenges: [
+                ...s.profile.completedChallenges,
+                challengeId,
+              ],
+            },
+          };
+        });
+      },
+
+      dismissLastSecretQuest: () => {
+        set({ lastSecretQuest: null });
+      },
+
+      // -------------------------------------------------------------------
       // Templates
       // -------------------------------------------------------------------
       cloneTemplate: templateId => {
@@ -1072,7 +1356,7 @@ export const useAppStore = create<AppState>()(
         lastQuestGenerationAt: state.lastQuestGenerationAt,
         lastDeconditioningResult: state.lastDeconditioningResult,
       }),
-      version: 4,
+      version: 5,
       migrate: (persistedState, version) => {
         const s =
           (persistedState as
@@ -1146,6 +1430,22 @@ export const useAppStore = create<AppState>()(
 
           s.activeQuests = [];
           s.lastQuestGenerationAt = null;
+        }
+
+        // v4 → v5: prestige & mystery layer — unlockedTitles, activeTitleId,
+        //           completedSecretQuests, completedChallenges,
+        //           zeroFatigueSessionsCount.
+        if (version < 5) {
+          if (s.profile && typeof s.profile === 'object') {
+            const p = s.profile as Record<string, unknown>;
+            if (!Array.isArray(p.unlockedTitles)) p.unlockedTitles = [];
+            if (typeof p.activeTitleId === 'undefined') p.activeTitleId = null;
+            if (!Array.isArray(p.completedSecretQuests)) p.completedSecretQuests = [];
+            if (!Array.isArray(p.completedChallenges)) p.completedChallenges = [];
+            if (typeof p.zeroFatigueSessionsCount !== 'number') {
+              p.zeroFatigueSessionsCount = 0;
+            }
+          }
         }
 
         return persistedState as never;

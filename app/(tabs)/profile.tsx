@@ -15,7 +15,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -24,12 +24,16 @@ import { FatigueBar, computeGlobalFatigue } from '@/components/FatigueBar';
 import { GradientBar } from '@/components/GradientBar';
 import { GrowthChart } from '@/components/GrowthChart';
 import { RANK_INFO, RankEmblem, computeRank } from '@/components/RankEmblem';
+import { RARITY_PALETTE } from '@/components/InventorySlot';
+import { ITEM_SETS, getActiveSets, setProgress } from '@/data/itemSets';
+import { TITLES, getTitle } from '@/data/titles';
 import {
+  selectEquipped,
   selectPlayerClass,
   selectProfile,
   useAppStore,
 } from '@/store/useAppStore';
-import type { PlayerClassId } from '@/types';
+import type { EquipmentSlot, PlayerClassId } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Class icon mapping (3 classes: guerrier / assassin / tank)
@@ -52,8 +56,17 @@ const PLAYER_CLASS_ICON: Record<PlayerClassId, LucideIcon> = {
 export default function ProfileScreen() {
   const profile = useAppStore(selectProfile);
   const playerClass = useAppStore(selectPlayerClass);
+  const equipped = useAppStore(selectEquipped);
   const history = useAppStore(s => s.workoutHistory);
   const updateNickname = useAppStore(s => s.updateNickname);
+  const setActiveTitle = useAppStore(s => s.setActiveTitle);
+
+  const activeTitle = getTitle(profile.activeTitleId);
+  const activeSets = useMemo(() => getActiveSets(equipped), [equipped]);
+  const setFatigueReduction = activeSets.reduce(
+    (sum, s) => (s.effect.kind === 'fatigue_reduction' ? sum + s.effect.points : sum),
+    0,
+  );
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [draftName, setDraftName] = useState(profile.nickname);
@@ -61,7 +74,11 @@ export default function ProfileScreen() {
   const ClassIcon = PLAYER_CLASS_ICON[profile.playerClassId] ?? Swords;
   const rank = computeRank(profile.level);
   const rankTagline = RANK_INFO[rank].tagline;
-  const fatigue = computeGlobalFatigue(profile.muscleStats);
+  const fatigue = computeGlobalFatigue(
+    profile.muscleStats,
+    profile.activeTitleId,
+    setFatigueReduction,
+  );
   const globalXpPercent = Math.min(
     100,
     (profile.totalXp / Math.max(1, profile.xpToNextLevel)) * 100,
@@ -160,6 +177,21 @@ export default function ProfileScreen() {
                   </View>
                 </Pressable>
               )}
+
+              {/* Active title — golden neon chip under the nickname */}
+              {activeTitle ? (
+                <Text
+                  className="mt-1 text-[10px] font-black uppercase tracking-[4px]"
+                  style={{
+                    color: activeTitle.colorHex,
+                    textShadowColor: activeTitle.colorHex,
+                    textShadowRadius: 8,
+                    textShadowOffset: { width: 0, height: 0 },
+                  }}
+                >
+                  « {activeTitle.name} »
+                </Text>
+              ) : null}
 
               <Text className="mt-3 text-[9px] uppercase tracking-[4px] text-cyan-400/70">
                 NIVEAU
@@ -284,6 +316,141 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* ================================================= EQUIPMENT SLOTS */}
+        <View className="px-5 pt-8">
+          <SectionTitle title="Équipement Actif" subtitle="4 slots" />
+          <View className="mt-3 flex-row justify-between gap-2">
+            {(['head', 'body', 'weapon', 'accessory'] as EquipmentSlot[]).map(
+              slot => (
+                <EquipmentSlotMini key={slot} slot={slot} equipped={equipped} />
+              ),
+            )}
+          </View>
+        </View>
+
+        {/* ==================================================== SET SYNERGIES */}
+        <View className="px-5 pt-8">
+          <SectionTitle
+            title="Synergies Actives"
+            subtitle={`${activeSets.length} complète${activeSets.length > 1 ? 's' : ''}`}
+          />
+          <View className="mt-3 gap-2">
+            {ITEM_SETS.map(set => {
+              const p = setProgress(set, equipped);
+              const active = p.active;
+              return (
+                <View
+                  key={set.id}
+                  className="rounded-2xl border p-3"
+                  style={{
+                    borderColor: active ? set.colorHex : '#1e293b',
+                    backgroundColor: active
+                      ? 'rgba(255,255,255,0.04)'
+                      : 'rgba(255,255,255,0.02)',
+                    shadowColor: active ? set.colorHex : 'transparent',
+                    shadowOpacity: active ? 0.85 : 0,
+                    shadowRadius: active ? 14 : 0,
+                    shadowOffset: { width: 0, height: 0 },
+                    opacity: active ? 1 : 0.6,
+                  }}
+                >
+                  <View className="flex-row items-center justify-between">
+                    <Text
+                      className="text-sm font-black tracking-wider"
+                      style={{
+                        color: active ? set.colorHex : '#64748B',
+                        textShadowColor: active ? set.colorHex : 'transparent',
+                        textShadowRadius: active ? 10 : 0,
+                      }}
+                    >
+                      {set.name.toUpperCase()}
+                    </Text>
+                    <Text
+                      className="text-[10px] font-bold uppercase tracking-widest"
+                      style={{
+                        color: active ? set.colorHex : '#475569',
+                      }}
+                    >
+                      {p.matched} / {p.required}
+                    </Text>
+                  </View>
+                  <Text className="mt-1 text-[11px] text-slate-400">
+                    {set.bonusLabel}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* ==================================================== TITLES GRID */}
+        <View className="px-5 pt-8">
+          <SectionTitle
+            title="Titres Débloqués"
+            subtitle={`${profile.unlockedTitles.length} / ${TITLES.length}`}
+          />
+          <View className="mt-3 gap-2">
+            {TITLES.map(t => {
+              const unlocked = profile.unlockedTitles.includes(t.id);
+              const isActive = profile.activeTitleId === t.id;
+              return (
+                <Pressable
+                  key={t.id}
+                  onPress={() =>
+                    unlocked && setActiveTitle(isActive ? null : t.id)
+                  }
+                  className="rounded-2xl border p-3 active:opacity-70"
+                  style={{
+                    borderColor: unlocked ? t.colorHex : '#1e293b',
+                    backgroundColor: isActive
+                      ? 'rgba(255,255,255,0.05)'
+                      : 'rgba(255,255,255,0.02)',
+                    shadowColor: isActive ? t.colorHex : 'transparent',
+                    shadowOpacity: isActive ? 0.85 : 0,
+                    shadowRadius: isActive ? 14 : 0,
+                    shadowOffset: { width: 0, height: 0 },
+                    opacity: unlocked ? 1 : 0.55,
+                  }}
+                >
+                  <View className="flex-row items-center justify-between">
+                    <Text
+                      className="text-sm font-black tracking-wider"
+                      style={{
+                        color: unlocked ? t.colorHex : '#475569',
+                        textShadowColor:
+                          isActive ? t.colorHex : 'transparent',
+                        textShadowRadius: isActive ? 10 : 0,
+                      }}
+                    >
+                      {t.name.toUpperCase()}
+                    </Text>
+                    {isActive ? (
+                      <Text
+                        className="rounded-md border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[3px]"
+                        style={{ borderColor: t.colorHex, color: t.colorHex }}
+                      >
+                        Actif
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Text className="mt-0.5 text-[11px] italic text-slate-500">
+                    « {t.description} »
+                  </Text>
+                  <Text className="mt-1 text-[10px] text-slate-400">
+                    <Text
+                      className="font-bold"
+                      style={{ color: unlocked ? t.colorHex : '#64748B' }}
+                    >
+                      {unlocked ? 'Effet : ' : 'Condition : '}
+                    </Text>
+                    {unlocked ? t.effectDescription : t.unlockHint}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         {/* ================================================== GROWTH CHART */}
         <View className="px-5 pb-8 pt-8">
           <SectionTitle
@@ -302,6 +469,67 @@ export default function ProfileScreen() {
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Equipment slot mini (head / body / weapon / accessory)
+// ---------------------------------------------------------------------------
+
+const SLOT_LABELS: Record<EquipmentSlot, string> = {
+  head: 'Tête',
+  body: 'Corps',
+  weapon: 'Arme',
+  accessory: 'Access.',
+};
+
+function EquipmentSlotMini({
+  slot,
+  equipped,
+}: {
+  slot: EquipmentSlot;
+  equipped: Record<EquipmentSlot, ReturnType<typeof selectEquipped> extends Record<EquipmentSlot, infer T> ? T : never>;
+}) {
+  const item = equipped[slot];
+  if (!item) {
+    return (
+      <View
+        className="flex-1 items-center justify-center rounded-xl border border-dashed border-slate-800 bg-white/[0.02] py-4"
+      >
+        <Text className="text-[9px] uppercase tracking-widest text-slate-600">
+          {SLOT_LABELS[slot]}
+        </Text>
+        <Text className="mt-0.5 text-[9px] text-slate-700">Vide</Text>
+      </View>
+    );
+  }
+  const palette = RARITY_PALETTE[item.rarity];
+  return (
+    <View
+      className="flex-1 items-center rounded-xl py-3 px-1"
+      style={{
+        borderWidth: 1.5,
+        borderColor: palette.border,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        shadowColor: palette.glow,
+        shadowOpacity: 0.7,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 0 },
+      }}
+    >
+      <Text
+        className="text-[9px] font-bold uppercase tracking-widest"
+        style={{ color: palette.border }}
+      >
+        {SLOT_LABELS[slot]}
+      </Text>
+      <Text
+        numberOfLines={1}
+        className="mt-1 text-[10px] font-bold text-slate-100"
+      >
+        {item.name}
+      </Text>
+    </View>
+  );
+}
 
 function SectionTitle({
   title,

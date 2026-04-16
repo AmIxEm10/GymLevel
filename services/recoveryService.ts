@@ -53,13 +53,19 @@ function overloadThreshold(muscleId: MuscleGroupId): number {
  */
 export const HOURLY_RECOVERY_RATE = 0.02;
 
-/** Resolve the active recovery rate for a given profile (class-aware). */
+/** Resolve the active recovery rate for a given profile (class + title aware). */
 export function recoveryRateForProfile(profile: UserProfile): number {
   // Lazy require to avoid a cycle with data/playerClasses → types → this.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { getPlayerClass } = require('@/data/playerClasses');
   const cls = getPlayerClass(profile.playerClassId);
-  return cls?.passiveEffects?.recoveryRate ?? HOURLY_RECOVERY_RATE;
+  let rate = cls?.passiveEffects?.recoveryRate ?? HOURLY_RECOVERY_RATE;
+
+  // "Briseur de Limites" title → +5 % on top of the base rate.
+  if (profile.activeTitleId === 'briseur_limites') {
+    rate += 0.005;
+  }
+  return rate;
 }
 
 /**

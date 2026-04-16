@@ -6,11 +6,15 @@
 
 // ---------- Leveling curve -------------------------------------------------
 
-/** Base XP required to clear level 1. Growth is polynomial. */
+/** Base XP required to clear level 1. Growth is exponential. */
 export const BASE_XP_PER_LEVEL = 100;
 
-/** xpToNextLevel(n) = BASE * n^LEVEL_EXPONENT */
-export const LEVEL_EXPONENT = 1.5;
+/**
+ * xpToNextLevel(n) = BASE * n^LEVEL_EXPONENT
+ * 1.8 exponent → Lv10 ≈ 6 300 XP, Lv20 ≈ 21 000 XP, Lv50 ≈ 118 000 XP.
+ * Nerf from 1.5 to 1.8 slows progression and makes each level meaningful.
+ */
+export const LEVEL_EXPONENT = 1.8;
 
 /** Hard cap — beyond this, XP still accumulates but level display stops. */
 export const MAX_LEVEL = 99;
@@ -19,9 +23,20 @@ export const MAX_LEVEL = 99;
 
 /**
  * Core formula: XP gained by a set = reps * weight * VOLUME_TO_XP_RATIO.
- * Bodyweight exercises use the user's bodyweight as weight (min 1 to avoid 0).
+ * Nerfed from 1.0 to 0.5 so 1 000 kg of volume now yields 500 XP instead
+ * of 1 000 — alignment with the steeper level curve.
  */
-export const VOLUME_TO_XP_RATIO = 1;
+export const VOLUME_TO_XP_RATIO = 0.5;
+
+// ---------- Muscle XP diminishing returns ---------------------------------
+
+/**
+ * Above this XP threshold, gains on a single muscle are shaved by
+ * MUSCLE_XP_MATURITY_REDUCTION (diminishing returns). The rich get less
+ * rich — encourages balanced training across groups.
+ */
+export const MUSCLE_XP_MATURITY_THRESHOLD = 5000;
+export const MUSCLE_XP_MATURITY_REDUCTION = 0.3; // 30 % shaved past threshold
 
 /** Warmup sets award a fraction of the XP. */
 export const WARMUP_XP_MULTIPLIER = 0.2;
@@ -95,12 +110,16 @@ export const DECONDITIONING_CHECK_COOLDOWN_HOURS = 12;
 /** Number of quests generated per day. */
 export const DAILY_QUEST_COUNT = 3;
 
-/** XP reward ranges per difficulty. */
+/**
+ * XP reward ranges per difficulty.
+ * Nerfed by 40 % (previously 50 / 150 / 400 / 1000) to align with the
+ * slower progression curve.
+ */
 export const QUEST_XP_REWARDS = {
-  easy: 50,
-  medium: 150,
-  hard: 400,
-  epic: 1000,
+  easy: 30,
+  medium: 90,
+  hard: 240,
+  epic: 600,
 } as const;
 
 /** Minimum hour (local time) at which stale quests are replaced. */

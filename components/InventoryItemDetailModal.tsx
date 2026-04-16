@@ -1,4 +1,4 @@
-import { FlaskConical, X } from 'lucide-react-native';
+import { CircleMinus, FlaskConical, Shield, X } from 'lucide-react-native';
 import { Modal, Pressable, Text, View } from 'react-native';
 
 import {
@@ -12,6 +12,10 @@ interface Props {
   onClose: () => void;
   /** When provided, a "CONSOMMER" CTA is shown — used for consumables. */
   onConsume?: () => void;
+  /** When provided for equipment, an "ÉQUIPER" CTA is shown. */
+  onEquip?: () => void;
+  /** When provided for equipment, a "RETIRER" CTA is shown. */
+  onUnequip?: () => void;
 }
 
 /**
@@ -24,6 +28,8 @@ export function InventoryItemDetailModal({
   visible,
   onClose,
   onConsume,
+  onEquip,
+  onUnequip,
 }: Props) {
   if (!item) return null;
   const palette = RARITY_PALETTE[item.rarity];
@@ -150,6 +156,53 @@ export function InventoryItemDetailModal({
                 ))}
               </View>
             </View>
+          ) : null}
+
+          {/* Equip / Unequip CTAs (equipment only) */}
+          {onUnequip ? (
+            <Pressable
+              onPress={onUnequip}
+              className="mt-5 flex-row items-center justify-center rounded-xl border-2 border-amber-400 bg-amber-500/10 py-3 active:opacity-70"
+              style={{
+                shadowColor: '#FBBF24',
+                shadowOpacity: 0.8,
+                shadowRadius: 14,
+                shadowOffset: { width: 0, height: 0 },
+              }}
+            >
+              <CircleMinus size={14} color="#FDE68A" strokeWidth={2.5} />
+              <Text
+                className="ml-2 text-xs font-black uppercase tracking-[4px] text-amber-200"
+                style={{ textShadowColor: '#FBBF24', textShadowRadius: 10 }}
+              >
+                Retirer
+              </Text>
+            </Pressable>
+          ) : onEquip ? (
+            <Pressable
+              onPress={onEquip}
+              className="mt-5 flex-row items-center justify-center rounded-xl border-2 py-3 active:opacity-70"
+              style={{
+                borderColor: palette.border,
+                backgroundColor: 'rgba(255,255,255,0.04)',
+                shadowColor: palette.glow,
+                shadowOpacity: 0.8,
+                shadowRadius: 14,
+                shadowOffset: { width: 0, height: 0 },
+              }}
+            >
+              <Shield size={14} color={palette.iconColor} strokeWidth={2.5} />
+              <Text
+                className="ml-2 text-xs font-black uppercase tracking-[4px]"
+                style={{
+                  color: palette.border,
+                  textShadowColor: palette.glow,
+                  textShadowRadius: 10,
+                }}
+              >
+                Équiper
+              </Text>
+            </Pressable>
           ) : null}
 
           {/* Consume CTA */}

@@ -102,9 +102,16 @@ function fromEquipment(
 export default function InventoryScreen() {
   const inventory = useAppStore(selectInventory);
   const consumeItem = useAppStore(s => s.consumeItem);
+  const equipItem = useAppStore(s => s.equipItem);
+  const unequipItem = useAppStore(s => s.unequipItem);
 
   const [selected, setSelected] = useState<
-    (InventoryDisplayItem & { consumableId?: string }) | null
+    | (InventoryDisplayItem & {
+        consumableId?: string;
+        equipmentId?: string;
+        equipmentSlot?: EquipmentSlot;
+      })
+    | null
   >(null);
 
   const displayItems = useMemo<
@@ -115,15 +122,23 @@ export default function InventoryScreen() {
         .filter((v): v is EquipmentItem => Boolean(v))
         .map(v => v.id),
     );
-    const real = inventory.equipment.map(it =>
-      fromEquipment(it, equippedIds.has(it.id)),
-    );
+    const real = inventory.equipment.map(it => ({
+      ...fromEquipment(it, equippedIds.has(it.id)),
+      equipmentId: it.id,
+      equipmentSlot: it.slot,
+    }));
     const consumables = inventory.consumables.map(fromConsumable);
     return [...consumables, ...real].slice(0, TOTAL_SLOTS);
   }, [inventory.equipment, inventory.equipped, inventory.consumables]);
 
   // Build the 20-slot grid: real + placeholders followed by locked slots.
-  type SlotItem = (InventoryDisplayItem & { consumableId?: string }) | null;
+  type SlotItem =
+    | (InventoryDisplayItem & {
+        consumableId?: string;
+        equipmentId?: string;
+        equipmentSlot?: EquipmentSlot;
+      })
+    | null;
   const slots: SlotItem[] = useMemo(() => {
     const filled: SlotItem[] = [...displayItems];
     while (filled.length < TOTAL_SLOTS) filled.push(null);
@@ -133,6 +148,20 @@ export default function InventoryScreen() {
   const handleConsume = () => {
     if (selected?.consumableId) {
       consumeItem(selected.consumableId);
+      setSelected(null);
+    }
+  };
+
+  const handleEquip = () => {
+    if (selected?.equipmentId) {
+      equipItem(selected.equipmentId);
+      setSelected(null);
+    }
+  };
+
+  const handleUnequip = () => {
+    if (selected?.equipmentSlot) {
+      unequipItem(selected.equipmentSlot);
       setSelected(null);
     }
   };
@@ -233,6 +262,12 @@ export default function InventoryScreen() {
         visible={selected !== null}
         onClose={() => setSelected(null)}
         onConsume={selected?.consumableId ? handleConsume : undefined}
+        onEquip={
+          selected?.equipmentId && !selected.equipped ? handleEquip : undefined
+        }
+        onUnequip={
+          selected?.equipmentId && selected.equipped ? handleUnequip : undefined
+        }
       />
     </SafeAreaView>
   );
