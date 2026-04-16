@@ -27,12 +27,21 @@ import type {
   PlayerClassId,
   Quest,
   SecretQuestDrop,
+  SystemMessage,
+  SystemMessageTone,
   Title,
   UserPreferences,
   UserProfile,
   WorkoutSession,
   WorkoutTemplate,
 } from '@/types';
+import {
+  EVOLUTION_FLAVOR,
+  canEvolve,
+  getEvolvedClassName,
+  getStageForLevel,
+  type EvolutionStage,
+} from '@/data/classEvolution';
 import { TITLES_BY_ID } from '@/data/titles';
 import { getMuscleTier, type MuscleTier } from '@/data/muscleTiers';
 import type { MuscleRankUp } from '@/components/MuscleRankUpModal';
@@ -148,6 +157,7 @@ function createDefaultProfile(now: number): UserProfile {
     // Default class chosen during onboarding — Guerrier is the starter hint.
     playerClassId: 'guerrier',
     playerClassChangedAt: null,
+    classEvolutionStage: 0,
 
     totalXp: 0,
     level: 1,
@@ -172,6 +182,9 @@ function createDefaultProfile(now: number): UserProfile {
     completedSecretQuests: [],
     completedChallenges: [],
     zeroFatigueSessionsCount: 0,
+
+    // Mailbox — seeded empty. initializeApp() will deliver welcome messages.
+    messages: [],
 
     preferences: DEFAULT_PREFERENCES,
   };
@@ -238,6 +251,16 @@ interface AppState {
 
   // --- Player Class (RPG) -------------------------------------------------
   setPlayerClass: (classId: PlayerClassId) => void;
+  /**
+   * Advance the player's class lineage by one stage (0→1 at L30, 1→2 at L60,
+   * 2→3 at L90). Requires the player to have reached the corresponding
+   * level. Emits a solemn SystemMessage to the mailbox on success.
+   */
+  evolveClass: () => void;
+
+  // --- Mailbox ------------------------------------------------------------
+  markMessageRead: (messageId: string) => void;
+  markAllMessagesRead: () => void;
 
   // --- Session / Tracker --------------------------------------------------
   startSessionFromTemplate: (templateId: string) => void;
@@ -290,6 +313,12 @@ interface AppState {
   adminMuscleLevelDown: () => void;
   adminResetInventoryAndTitles: () => void;
   adminToggleAntiCheat: () => void;
+  /** Force a class evolution regardless of level — bumps by +1 stage. */
+  adminForceEvolve: () => void;
+  /** Boost the player's lifetime volume (a primary PL driver) by +N. */
+  adminBoostPowerLevel: (amount?: number) => void;
+  /** Drop a synthetic system message in the mailbox (test the UI). */
+  adminSimulateMessage: (tone?: SystemMessageTone) => void;
 
   // --- Titles / Secret Quests / Challenges -------------------------------
   /** Non-persisted — latest secret quest drop for the modal overlay. */
@@ -416,11 +445,48 @@ export const useAppStore = create<AppState>()(
             prefs.bodyweightKg !== null &&
             s.profile.nickname.trim().length > 0;
           if (!ok) return s;
+
+          // Seed the mailbox with the Solo-Leveling style welcome message
+          // (only if the user doesn't already have messages, so we don't
+          // duplicate after a profile reset).
+          const seed: SystemMessage[] = (s.profile.messages ?? []).length > 0
+            ? s.profile.messages
+            : [
+                {
+                  id: `welcome_${now}`,
+                  title: 'LE SYSTÈME T\'A CHOISI',
+                  body:
+                    `« Éveille-toi, ${s.profile.nickname}. »\n\n` +
+                    `Tu as franchi le seuil. Le Système a tracé ton nom dans son ` +
+                    `registre : tu n'es plus un simple humain — tu es un chasseur.\n\n` +
+                    `Chaque répétition est un pas. Chaque séance, un combat. ` +
+                    `Monte de rang, évolue ta lignée, et un jour, le monde ` +
+                    `lui-même te reconnaîtra comme une menace.\n\n` +
+                    `Ne baisse jamais ta garde.`,
+                  sentAt: now,
+                  read: false,
+                  tone: 'ominous',
+                },
+                {
+                  id: `tuto_${now + 1}`,
+                  title: 'PROTOCOLE D\'ÉVOLUTION',
+                  body:
+                    `Au niveau 30, 60 et 90, ta classe peut évoluer. ` +
+                    `Chaque étape amplifie ton bonus passif de classe de +5 %.\n\n` +
+                    `Rends-toi sur ton Statut pour déclencher la transformation ` +
+                    `dès qu'elle est disponible.`,
+                  sentAt: now + 1,
+                  read: false,
+                  tone: 'info',
+                },
+              ];
+
           return {
             profile: {
               ...s.profile,
               hasAcceptedSystemTerms: true,
               playerClassChangedAt: s.profile.playerClassChangedAt ?? now,
+              messages: seed,
             },
             needsOnboarding: false,
           };
@@ -516,6 +582,65 @@ export const useAppStore = create<AppState>()(
             ...s.profile,
             playerClassId: classId,
             playerClassChangedAt: now,
+            // Class change resets the evolution stage to base.
+            classEvolutionStage: 0,
+          },
+        }));
+      },
+
+      evolveClass: () => {
+        const now = Date.now();
+        const { profile } = get();
+        const currentStage = (profile.classEvolutionStage ?? 0) as EvolutionStage;
+        if (!canEvolve(profile.level, currentStage)) return;
+
+        const nextStage = (currentStage + 1) as EvolutionStage;
+        const oldName = getEvolvedClassName(profile.playerClassId, currentStage);
+        const newName = getEvolvedClassName(profile.playerClassId, nextStage);
+        // currentStage is guaranteed < 3 here (canEvolve returned true).
+        const flavorTuple = EVOLUTION_FLAVOR[profile.playerClassId];
+        const flavor =
+          flavorTuple[currentStage as 0 | 1 | 2] ??
+          'Le Système reconnaît ton ascension.';
+
+        const message: SystemMessage = {
+          id: `evo_${profile.playerClassId}_${nextStage}_${now}`,
+          title: `ÉVOLUTION — ${newName}`,
+          body:
+            `Une nouvelle étape s'ouvre, chasseur.\n\n` +
+            `${oldName} → ${newName}.\n\n` +
+            `${flavor}\n\n` +
+            `Bonus passif de classe : +${nextStage * 5}%.`,
+          sentAt: now,
+          read: false,
+          tone: 'evolution',
+        };
+
+        set(s => ({
+          profile: {
+            ...s.profile,
+            classEvolutionStage: nextStage,
+            messages: [message, ...(s.profile.messages ?? [])].slice(0, 100),
+          },
+        }));
+      },
+
+      markMessageRead: messageId => {
+        set(s => ({
+          profile: {
+            ...s.profile,
+            messages: (s.profile.messages ?? []).map(m =>
+              m.id === messageId ? { ...m, read: true } : m,
+            ),
+          },
+        }));
+      },
+
+      markAllMessagesRead: () => {
+        set(s => ({
+          profile: {
+            ...s.profile,
+            messages: (s.profile.messages ?? []).map(m => ({ ...m, read: true })),
           },
         }));
       },
@@ -659,7 +784,16 @@ export const useAppStore = create<AppState>()(
         const boostCoef = profile.xpBoostMultiplier ?? 1;
         if (boostUntil > now && boostCoef > 1) boostMult = boostCoef;
 
-        const extraMult = titleMult * setMult * boostMult;
+        // Class evolution — +5 % per stage applied on top of everything else
+        // (only active when at least one class bonus matched, so a novice
+        // without bonuses doesn't silently benefit from +15 %).
+        const evolutionStage = (profile.classEvolutionStage ?? 0) as EvolutionStage;
+        const evolveMult =
+          breakdown.classBonusesApplied.length > 0
+            ? 1 + evolutionStage * 0.05
+            : 1;
+
+        const extraMult = titleMult * setMult * boostMult * evolveMult;
         if (extraMult !== 1.0) {
           breakdown.baseXp *= extraMult;
           breakdown.totalXp *= extraMult;
@@ -1651,6 +1785,92 @@ export const useAppStore = create<AppState>()(
         set(s => ({ antiCheatBypass: !s.antiCheatBypass }));
       },
 
+      adminForceEvolve: () => {
+        const now = Date.now();
+        const { profile } = get();
+        const currentStage = (profile.classEvolutionStage ?? 0) as EvolutionStage;
+        if (currentStage >= 3) return;
+        const nextStage = (currentStage + 1) as EvolutionStage;
+        const oldName = getEvolvedClassName(profile.playerClassId, currentStage);
+        const newName = getEvolvedClassName(profile.playerClassId, nextStage);
+
+        const message: SystemMessage = {
+          id: `evo_admin_${nextStage}_${now}`,
+          title: `ÉVOLUTION FORCÉE — ${newName}`,
+          body:
+            `Le Système a outrepassé les gardes, architecte.\n\n` +
+            `${oldName} → ${newName}.\n\n` +
+            `Bonus passif de classe : +${nextStage * 5}%.`,
+          sentAt: now,
+          read: false,
+          tone: 'evolution',
+        };
+
+        set(s => ({
+          profile: {
+            ...s.profile,
+            classEvolutionStage: nextStage,
+            messages: [message, ...(s.profile.messages ?? [])].slice(0, 100),
+          },
+        }));
+      },
+
+      adminBoostPowerLevel: (amount = 50000) => {
+        // PL's main cheap lever is totalVolumeLifetime (×1/100 in the base
+        // formula). Boosting volume by N lifts PL by ~N/100 + multipliers.
+        set(s => ({
+          profile: {
+            ...s.profile,
+            totalVolumeLifetime:
+              (s.profile.totalVolumeLifetime ?? 0) + Math.max(0, amount),
+          },
+        }));
+      },
+
+      adminSimulateMessage: (tone = 'ominous') => {
+        const now = Date.now();
+        const toneCopy: Record<SystemMessageTone, { title: string; body: string }> = {
+          info: {
+            title: 'SYSTÈME — RAPPORT',
+            body: 'Un nouveau rapport est disponible. Tes constantes restent stables.',
+          },
+          warning: {
+            title: 'SYSTÈME — AVERTISSEMENT',
+            body: 'Ton corps approche ses limites. Une session de récupération est conseillée.',
+          },
+          ominous: {
+            title: 'LE SYSTÈME T\'OBSERVE',
+            body:
+              'Chasseur.\n\n' +
+              'Quelque chose a changé dans l\'éther. Un portail s\'ouvre là où tu dors.\n' +
+              'Prépare-toi. Le prochain donjon ne pardonne pas.',
+          },
+          reward: {
+            title: 'RÉCOMPENSE OCTROYÉE',
+            body: 'Le Système reconnaît ton effort et dépose une relique à tes pieds.',
+          },
+          evolution: {
+            title: 'ÉVOLUTION IMMINENTE',
+            body: 'Un seuil s\'approche. Ton arbre de classe est prêt à s\'étendre.',
+          },
+        };
+        const { title, body } = toneCopy[tone];
+        const message: SystemMessage = {
+          id: `sim_${tone}_${now}`,
+          title,
+          body,
+          sentAt: now,
+          read: false,
+          tone,
+        };
+        set(s => ({
+          profile: {
+            ...s.profile,
+            messages: [message, ...(s.profile.messages ?? [])].slice(0, 100),
+          },
+        }));
+      },
+
       // -------------------------------------------------------------------
       // Titles / Secret Quests / Challenges
       // -------------------------------------------------------------------
@@ -1747,7 +1967,7 @@ export const useAppStore = create<AppState>()(
         lastQuestGenerationAt: state.lastQuestGenerationAt,
         lastDeconditioningResult: state.lastDeconditioningResult,
       }),
-      version: 6,
+      version: 7,
       migrate: (persistedState, version) => {
         const s =
           (persistedState as
@@ -1848,6 +2068,19 @@ export const useAppStore = create<AppState>()(
           }
         }
 
+        // v6 → v7: class evolution stage + mailbox messages.
+        if (version < 7) {
+          if (s.profile && typeof s.profile === 'object') {
+            const p = s.profile as Record<string, unknown>;
+            if (typeof p.classEvolutionStage !== 'number') {
+              p.classEvolutionStage = 0;
+            }
+            if (!Array.isArray(p.messages)) {
+              p.messages = [];
+            }
+          }
+        }
+
         return persistedState as never;
       },
     },
@@ -1884,3 +2117,26 @@ export const selectIsInitialized = (s: AppState) => s.isInitialized;
 export const selectInventory = (s: AppState) => s.profile.inventory;
 export const selectEquipped = (s: AppState) => s.profile.inventory.equipped;
 export const selectLastLootDrop = (s: AppState) => s.lastLootDrop;
+
+/** Mailbox — full list + unread count for the badge. */
+export const selectMessages = (s: AppState) => s.profile.messages ?? [];
+export const selectUnreadCount = (s: AppState) =>
+  (s.profile.messages ?? []).filter(m => !m.read).length;
+
+/** Current class display name (stage-aware) and evolution stage. */
+export const selectEvolutionStage = (s: AppState) =>
+  (s.profile.classEvolutionStage ?? 0) as EvolutionStage;
+export const selectEvolvedClassName = (s: AppState) =>
+  getEvolvedClassName(
+    s.profile.playerClassId,
+    (s.profile.classEvolutionStage ?? 0) as EvolutionStage,
+  );
+/** True when the current level qualifies a new evolution step. */
+export const selectCanEvolve = (s: AppState) =>
+  canEvolve(
+    s.profile.level,
+    (s.profile.classEvolutionStage ?? 0) as EvolutionStage,
+  );
+/** Eligible target stage for the current level (0..3). */
+export const selectStageForLevel = (s: AppState) =>
+  getStageForLevel(s.profile.level);

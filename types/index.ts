@@ -566,6 +566,26 @@ export interface ProfileBuffs {
   pendingFatigueReduction?: number; // absolute points to subtract from global fatigue (0..100)
 }
 
+// ---- System messages (mailbox) -------------------------------------------
+
+/** Tone of a system message — drives the border colour in the mailbox. */
+export type SystemMessageTone =
+  | 'info'      // Cyan — routine system update
+  | 'warning'   // Amber — cautionary
+  | 'ominous'   // Rose — Solo Leveling "The System" style
+  | 'reward'    // Purple — quest/evolution reward
+  | 'evolution';// Gold — class evolution announcement
+
+/** One message in the player's Mailbox. Persisted on the UserProfile. */
+export interface SystemMessage {
+  id: string;
+  title: string;
+  body: string;
+  sentAt: number;
+  read: boolean;
+  tone: SystemMessageTone;
+}
+
 export interface UserProfile {
   id: string;
   nickname: string;
@@ -579,6 +599,16 @@ export interface UserProfile {
   playerClassId: PlayerClassId;
   /** Timestamp of last class change — we may add cooldown later. */
   playerClassChangedAt: number | null;
+  /**
+   * Current evolution stage of the active class lineage.
+   *   0 = base (e.g. Guerrier)
+   *   1 = first evolution  (L30 — e.g. Gladiateur)
+   *   2 = second evolution (L60 — e.g. Berserker)
+   *   3 = final form       (L90 — e.g. Seigneur de Guerre)
+   *
+   * Each step grants +5% to the class's passive bonus multipliers.
+   */
+  classEvolutionStage: 0 | 1 | 2 | 3;
 
   totalXp: number;
   level: number;
@@ -616,6 +646,9 @@ export interface UserProfile {
   completedChallenges: string[];
   /** Counter used by the "Ami des Muscles" title unlock. */
   zeroFatigueSessionsCount: number;
+
+  /** Mailbox — narrative messages from "The System". */
+  messages: SystemMessage[];
 
   currentStreak: number;
   longestStreak: number;

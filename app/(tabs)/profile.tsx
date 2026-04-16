@@ -1,8 +1,10 @@
 import {
   Activity,
   Check,
+  ChevronRight,
   Edit2,
   HeartPulse,
+  Mail,
   Ruler,
   Scale,
   Shield,
@@ -31,10 +33,14 @@ import { ITEM_SETS, getActiveSets, setProgress } from '@/data/itemSets';
 import { TITLES, getTitle } from '@/data/titles';
 import { calculatePowerLevel } from '@/services/gamificationService';
 import {
+  selectCanEvolve,
   selectEquipped,
+  selectEvolutionStage,
+  selectEvolvedClassName,
   selectIsAdmin,
   selectPlayerClass,
   selectProfile,
+  selectUnreadCount,
   useAppStore,
 } from '@/store/useAppStore';
 import type { EquipmentSlot, PlayerClassId } from '@/types';
@@ -54,6 +60,35 @@ const PLAYER_CLASS_ICON: Record<PlayerClassId, LucideIcon> = {
 };
 
 // ---------------------------------------------------------------------------
+// Power Level Aura — glow tier that wraps the BodyView silhouette.
+//   PL >= 30k  → gold   (hunter legend)
+//   PL >= 15k  → purple (apex chasseur)
+//   PL >= 5k   → cyan   (ascendant)
+//   below      → no aura
+// ---------------------------------------------------------------------------
+
+interface AuraDef {
+  id: 'gold' | 'purple' | 'cyan' | 'none';
+  color: string;
+  glow: string;
+  label: string;
+  intensity: number; // 0..1 — used for shadowRadius + opacity
+}
+
+function resolveAura(powerLevel: number): AuraDef {
+  if (powerLevel >= 30000) {
+    return { id: 'gold',   color: '#FBBF24', glow: '#FEF3C7', label: 'Aura Dorée',    intensity: 1.0 };
+  }
+  if (powerLevel >= 15000) {
+    return { id: 'purple', color: '#A855F7', glow: '#E9D5FF', label: 'Aura Violette', intensity: 0.85 };
+  }
+  if (powerLevel >= 5000) {
+    return { id: 'cyan',   color: '#22D3EE', glow: '#A5F3FC', label: 'Aura Cyan',     intensity: 0.7 };
+  }
+  return { id: 'none', color: '#1e293b', glow: 'transparent', label: '', intensity: 0 };
+}
+
+// ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
 
@@ -65,10 +100,16 @@ export default function ProfileScreen() {
   const updateNickname = useAppStore(s => s.updateNickname);
   const setActiveTitle = useAppStore(s => s.setActiveTitle);
   const isAdmin = useAppStore(selectIsAdmin);
+  const unreadCount = useAppStore(selectUnreadCount);
+  const evolutionStage = useAppStore(selectEvolutionStage);
+  const evolvedClassName = useAppStore(selectEvolvedClassName);
+  const canEvolveNow = useAppStore(selectCanEvolve);
+  const evolveClass = useAppStore(s => s.evolveClass);
 
   const activeTitle = getTitle(profile.activeTitleId);
   const activeSets = useMemo(() => getActiveSets(equipped), [equipped]);
   const powerLevel = useMemo(() => calculatePowerLevel(profile), [profile]);
+  const aura = useMemo(() => resolveAura(powerLevel), [powerLevel]);
   const setFatigueReduction = activeSets.reduce(
     (sum, s) => (s.effect.kind === 'fatigue_reduction' ? sum + s.effect.points : sum),
     0,
@@ -113,24 +154,55 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ================================================== HEADER */}
-        <View className="px-5 pt-4 pb-4">
-          <Text className="text-[10px] font-semibold tracking-[6px] text-blue-400/70">
-            LE SYSTÈME
-          </Text>
+        <View className="px-5 pt-4 pb-4 flex-row items-start justify-between">
+          <View className="flex-1">
+            <Text className="text-[10px] font-semibold tracking-[6px] text-blue-400/70">
+              LE SYSTÈME
+            </Text>
 
-          <Text
-            className="mt-1 text-5xl font-black tracking-[4px] text-blue-300"
+            <Text
+              className="mt-1 text-5xl font-black tracking-[4px] text-blue-300"
+              style={{
+                textShadowColor: '#60A5FA',
+                textShadowRadius: 18,
+                textShadowOffset: { width: 0, height: 0 },
+              }}
+            >
+              STATUT
+            </Text>
+
+            <View className="mt-3 h-[2px] w-24 bg-blue-400" />
+            <View className="mt-[2px] h-[1px] w-16 bg-cyan-400/60" />
+          </View>
+
+          {/* Boîte aux Lettres — icon with unread pill */}
+          <Pressable
+            onPress={() => router.push('/mailbox')}
+            className="relative rounded-xl border border-blue-500/40 bg-blue-500/10 p-2.5 active:opacity-70"
             style={{
-              textShadowColor: '#60A5FA',
-              textShadowRadius: 18,
-              textShadowOffset: { width: 0, height: 0 },
+              shadowColor: unreadCount > 0 ? '#F43F5E' : '#22D3EE',
+              shadowOpacity: unreadCount > 0 ? 0.9 : 0.4,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: 0 },
             }}
           >
-            STATUT
-          </Text>
-
-          <View className="mt-3 h-[2px] w-24 bg-blue-400" />
-          <View className="mt-[2px] h-[1px] w-16 bg-cyan-400/60" />
+            <Mail size={16} color="#BFDBFE" strokeWidth={2} />
+            {unreadCount > 0 ? (
+              <View
+                className="absolute -right-1 -top-1 h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1"
+                style={{
+                  shadowColor: '#F43F5E',
+                  shadowOpacity: 0.9,
+                  shadowRadius: 6,
+                  shadowOffset: { width: 0, height: 0 },
+                }}
+              >
+                <Text className="text-[9px] font-black text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
         </View>
 
         {/* =========================== LEVEL HERO + NICKNAME */}
@@ -317,10 +389,23 @@ export default function ProfileScreen() {
                       textShadowRadius: 12,
                       textShadowOffset: { width: 0, height: 0 },
                     }}
+                    numberOfLines={1}
                   >
-                    {playerClass.name.toUpperCase()}
+                    {evolvedClassName.toUpperCase()}
                   </Text>
                 </View>
+                {evolutionStage > 0 ? (
+                  <Text
+                    className="mt-0.5 text-[9px] font-black uppercase tracking-[3px]"
+                    style={{
+                      color: playerClass.colorHex,
+                      textShadowColor: playerClass.colorHex,
+                      textShadowRadius: 6,
+                    }}
+                  >
+                    ÉVOLUTION {'I'.repeat(evolutionStage)} · +{evolutionStage * 5}%
+                  </Text>
+                ) : null}
                 <Text className="mt-0.5 text-[11px] italic text-slate-500">
                   « {playerClass.tagline} »
                 </Text>
@@ -334,6 +419,29 @@ export default function ProfileScreen() {
             <View className="mt-4">
               <FatigueBar value={fatigue} />
             </View>
+
+            {/* Evolve CTA — surfaces when a new stage is reachable */}
+            {canEvolveNow ? (
+              <Pressable
+                onPress={evolveClass}
+                className="mt-4 flex-row items-center justify-center rounded-xl border-2 border-amber-400/80 bg-amber-400/10 py-2.5 active:opacity-70"
+                style={{
+                  shadowColor: '#FBBF24',
+                  shadowOpacity: 0.9,
+                  shadowRadius: 16,
+                  shadowOffset: { width: 0, height: 0 },
+                }}
+              >
+                <Sparkles size={14} color="#FEF3C7" strokeWidth={2.25} />
+                <Text
+                  className="ml-2 text-[11px] font-black uppercase tracking-[3px] text-amber-100"
+                  style={{ textShadowColor: '#FBBF24', textShadowRadius: 10 }}
+                >
+                  Évoluer la Classe
+                </Text>
+                <ChevronRight size={12} color="#FEF3C7" strokeWidth={2.5} />
+              </Pressable>
+            ) : null}
           </View>
 
         </View>
@@ -342,10 +450,52 @@ export default function ProfileScreen() {
         <View className="px-5 pt-8">
           <SectionTitle
             title="Monitoring Biométrique"
-            subtitle="Appuie sur une zone"
+            subtitle={aura.id !== 'none' ? aura.label : 'Appuie sur une zone'}
           />
-          <View className="mt-3">
+          <View
+            className="mt-3 rounded-3xl"
+            style={
+              aura.id !== 'none'
+                ? {
+                    borderWidth: 1.5,
+                    borderColor: aura.color,
+                    backgroundColor: `${aura.color}10`,
+                    padding: 10,
+                    shadowColor: aura.color,
+                    shadowOpacity: aura.intensity,
+                    shadowRadius: 24 * aura.intensity,
+                    shadowOffset: { width: 0, height: 0 },
+                  }
+                : undefined
+            }
+          >
+            {/* Aura halo — inner soft ring that emphasises the silhouette. */}
+            {aura.id !== 'none' ? (
+              <View
+                pointerEvents="none"
+                className="absolute left-0 right-0 top-0 bottom-0 rounded-3xl"
+                style={{
+                  borderWidth: 0.75,
+                  borderColor: aura.glow,
+                  opacity: aura.intensity * 0.4,
+                }}
+              />
+            ) : null}
             <BodyView muscleStats={profile.muscleStats} />
+            {aura.id !== 'none' ? (
+              <View className="mt-2 items-center">
+                <Text
+                  className="text-[9px] font-black uppercase tracking-[4px]"
+                  style={{
+                    color: aura.color,
+                    textShadowColor: aura.color,
+                    textShadowRadius: 10,
+                  }}
+                >
+                  ◆ {aura.label} ◆
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 

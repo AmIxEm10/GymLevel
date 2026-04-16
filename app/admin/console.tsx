@@ -4,12 +4,15 @@ import {
   Flame,
   Gem,
   KeyRound,
+  Mail,
   Package,
   RefreshCcw,
   ShieldAlert,
   Sparkles,
   Sword,
   Trash2,
+  TrendingUp,
+  Wand2,
   X,
   Zap,
 } from 'lucide-react-native';
@@ -49,6 +52,9 @@ export default function AdminConsoleScreen() {
     s => s.adminResetInventoryAndTitles,
   );
   const adminToggleAntiCheat = useAppStore(s => s.adminToggleAntiCheat);
+  const adminForceEvolve = useAppStore(s => s.adminForceEvolve);
+  const adminBoostPowerLevel = useAppStore(s => s.adminBoostPowerLevel);
+  const adminSimulateMessage = useAppStore(s => s.adminSimulateMessage);
 
   const [tab, setTab] = useState<Tab>('xp');
   const [itemMode, setItemMode] = useState<'equipment' | 'consumable'>('consumable');
@@ -168,6 +174,28 @@ export default function AdminConsoleScreen() {
               Icon={Flame}
               onPress={adminResetFatigue}
               color="#10B981"
+            />
+
+            <SectionTitle title="Évolution Thématique" />
+            <View className="flex-row" style={{ gap: 8 }}>
+              <AdminBtn
+                label="Forcer Évolution"
+                Icon={Wand2}
+                onPress={adminForceEvolve}
+                color="#FBBF24"
+              />
+              <AdminBtn
+                label="Boost PL +50k"
+                Icon={TrendingUp}
+                onPress={() => adminBoostPowerLevel(50000)}
+                color="#A855F7"
+              />
+            </View>
+            <AdminBtn
+              label="Simuler un Message du Système"
+              Icon={Mail}
+              onPress={() => adminSimulateMessage('ominous')}
+              color="#F43F5E"
             />
 
             <SectionTitle title="Anti-Cheat" />

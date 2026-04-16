@@ -67,47 +67,71 @@ export const OVERALL_TIER_XP: Record<MuscleTier, number> = Object.fromEntries(
   Object.entries(MUSCLE_TIER_XP).map(([k, v]) => [k, v * 10]),
 ) as Record<MuscleTier, number>;
 
+export type TierFamily =
+  | 'untrained'
+  | 'iron'
+  | 'bronze'
+  | 'silver'
+  | 'gold'
+  | 'platinum'
+  | 'diamond'
+  | 'master'
+  | 'legend';
+
 export interface TierMeta {
   label: string;
   shortLabel: string;
   color: string;
   glow: string;
-  family:
-    | 'untrained'
-    | 'iron'
-    | 'bronze'
-    | 'silver'
-    | 'gold'
-    | 'platinum'
-    | 'diamond'
-    | 'master'
-    | 'legend';
+  family: TierFamily;
 }
 
 export const TIER_META: Record<MuscleTier, TierMeta> = {
-  untrained: { label: 'Untrained',  shortLabel: 'UT', color: '#475569', glow: '#64748B', family: 'untrained' },
+  untrained: { label: 'Néophyte',   shortLabel: 'Néophyte',    color: '#475569', glow: '#64748B', family: 'untrained' },
 
-  iron_1:    { label: 'Iron I',     shortLabel: 'I1', color: '#6B7280', glow: '#9CA3AF', family: 'iron' },
-  iron_2:    { label: 'Iron II',    shortLabel: 'I2', color: '#78716C', glow: '#A8A29E', family: 'iron' },
-  iron_3:    { label: 'Iron III',   shortLabel: 'I3', color: '#9CA3AF', glow: '#D1D5DB', family: 'iron' },
+  iron_1:    { label: 'Fer I',      shortLabel: 'Fer I',       color: '#6B7280', glow: '#9CA3AF', family: 'iron' },
+  iron_2:    { label: 'Fer II',     shortLabel: 'Fer II',      color: '#78716C', glow: '#A8A29E', family: 'iron' },
+  iron_3:    { label: 'Fer III',    shortLabel: 'Fer III',     color: '#9CA3AF', glow: '#D1D5DB', family: 'iron' },
 
-  bronze_1:  { label: 'Bronze I',   shortLabel: 'B1', color: '#B45309', glow: '#F97316', family: 'bronze' },
-  bronze_2:  { label: 'Bronze II',  shortLabel: 'B2', color: '#C2410C', glow: '#F97316', family: 'bronze' },
-  bronze_3:  { label: 'Bronze III', shortLabel: 'B3', color: '#EA580C', glow: '#FB923C', family: 'bronze' },
+  bronze_1:  { label: 'Bronze I',   shortLabel: 'Bronze I',    color: '#B45309', glow: '#F97316', family: 'bronze' },
+  bronze_2:  { label: 'Bronze II',  shortLabel: 'Bronze II',   color: '#C2410C', glow: '#F97316', family: 'bronze' },
+  bronze_3:  { label: 'Bronze III', shortLabel: 'Bronze III',  color: '#EA580C', glow: '#FB923C', family: 'bronze' },
 
-  silver_1:  { label: 'Silver I',   shortLabel: 'S1', color: '#94A3B8', glow: '#CBD5E1', family: 'silver' },
-  silver_2:  { label: 'Silver II',  shortLabel: 'S2', color: '#9CA3AF', glow: '#D1D5DB', family: 'silver' },
-  silver_3:  { label: 'Silver III', shortLabel: 'S3', color: '#E5E7EB', glow: '#F3F4F6', family: 'silver' },
+  silver_1:  { label: 'Argent I',   shortLabel: 'Argent I',    color: '#94A3B8', glow: '#CBD5E1', family: 'silver' },
+  silver_2:  { label: 'Argent II',  shortLabel: 'Argent II',   color: '#9CA3AF', glow: '#D1D5DB', family: 'silver' },
+  silver_3:  { label: 'Argent III', shortLabel: 'Argent III',  color: '#E5E7EB', glow: '#F3F4F6', family: 'silver' },
 
-  gold_1:    { label: 'Gold I',     shortLabel: 'G1', color: '#D97706', glow: '#FBBF24', family: 'gold' },
-  gold_2:    { label: 'Gold II',    shortLabel: 'G2', color: '#EAB308', glow: '#FACC15', family: 'gold' },
-  gold_3:    { label: 'Gold III',   shortLabel: 'G3', color: '#FBBF24', glow: '#FDE68A', family: 'gold' },
+  gold_1:    { label: 'Or I',       shortLabel: 'Or I',        color: '#D97706', glow: '#FBBF24', family: 'gold' },
+  gold_2:    { label: 'Or II',      shortLabel: 'Or II',       color: '#EAB308', glow: '#FACC15', family: 'gold' },
+  gold_3:    { label: 'Or III',     shortLabel: 'Or III',      color: '#FBBF24', glow: '#FDE68A', family: 'gold' },
 
-  platinum:  { label: 'Platinum',   shortLabel: 'P',  color: '#22D3EE', glow: '#67E8F9', family: 'platinum' },
-  diamond:   { label: 'Diamond',    shortLabel: 'D',  color: '#818CF8', glow: '#A5B4FC', family: 'diamond' },
-  master:    { label: 'Master',     shortLabel: 'M',  color: '#A855F7', glow: '#C084FC', family: 'master' },
-  legend:    { label: 'Legend',     shortLabel: 'L',  color: '#F43F5E', glow: '#FB7185', family: 'legend' },
+  platinum:  { label: 'Platine',    shortLabel: 'Platine',     color: '#22D3EE', glow: '#67E8F9', family: 'platinum' },
+  diamond:   { label: 'Diamant',    shortLabel: 'Diamant',     color: '#818CF8', glow: '#A5B4FC', family: 'diamond' },
+  master:    { label: 'Maître',     shortLabel: 'Maître',      color: '#A855F7', glow: '#C084FC', family: 'master' },
+  legend:    { label: 'Légende',    shortLabel: 'Légende',     color: '#F43F5E', glow: '#FB7185', family: 'legend' },
 };
+
+// ---------------------------------------------------------------------------
+// Mastery titles per family — displayed on the Muscles screen under the tier
+// chip. E.g. a muscle in Gold III shows "Expert" as a mastery sub-title.
+// ---------------------------------------------------------------------------
+
+export const TIER_FAMILY_MASTERY: Record<TierFamily, string> = {
+  untrained: 'Dormant',
+  iron:      'Initié',
+  bronze:    'Entraîné',
+  silver:    'Athlète',
+  gold:      'Expert',
+  platinum:  'Maître',
+  diamond:   'Maître',
+  master:    'Maître',
+  legend:    'Maître',
+};
+
+/** Resolve mastery title for a given tier. */
+export function getMasteryTitle(tier: MuscleTier): string {
+  return TIER_FAMILY_MASTERY[TIER_META[tier].family];
+}
 
 /** Unique tier families in display order — used by the ladder at top of screen. */
 export const TIER_FAMILIES: Array<{
@@ -116,14 +140,14 @@ export const TIER_FAMILIES: Array<{
   color: string;
   glow: string;
 }> = [
-  { id: 'iron',     label: 'Iron',     color: '#9CA3AF', glow: '#D1D5DB' },
+  { id: 'iron',     label: 'Fer',      color: '#9CA3AF', glow: '#D1D5DB' },
   { id: 'bronze',   label: 'Bronze',   color: '#EA580C', glow: '#FB923C' },
-  { id: 'silver',   label: 'Silver',   color: '#CBD5E1', glow: '#E5E7EB' },
-  { id: 'gold',     label: 'Gold',     color: '#FBBF24', glow: '#FDE68A' },
-  { id: 'platinum', label: 'Platinum', color: '#22D3EE', glow: '#67E8F9' },
-  { id: 'diamond',  label: 'Diamond',  color: '#818CF8', glow: '#A5B4FC' },
-  { id: 'master',   label: 'Master',   color: '#A855F7', glow: '#C084FC' },
-  { id: 'legend',   label: 'Legend',   color: '#F43F5E', glow: '#FB7185' },
+  { id: 'silver',   label: 'Argent',   color: '#CBD5E1', glow: '#E5E7EB' },
+  { id: 'gold',     label: 'Or',       color: '#FBBF24', glow: '#FDE68A' },
+  { id: 'platinum', label: 'Platine',  color: '#22D3EE', glow: '#67E8F9' },
+  { id: 'diamond',  label: 'Diamant',  color: '#818CF8', glow: '#A5B4FC' },
+  { id: 'master',   label: 'Maître',   color: '#A855F7', glow: '#C084FC' },
+  { id: 'legend',   label: 'Légende',  color: '#F43F5E', glow: '#FB7185' },
 ];
 
 /** Resolve the tier for a given XP amount (per muscle). */

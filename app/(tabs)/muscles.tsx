@@ -12,6 +12,7 @@ import {
   TIER_FAMILIES,
   TIER_META,
   TIER_ORDER,
+  getMasteryTitle,
   getMuscleTier,
   progressWithinTier,
   tierRankIndex,
@@ -34,10 +35,10 @@ interface FilterDef {
 }
 
 const FILTERS: readonly FilterDef[] = [
-  { id: 'all',   label: 'All',        bodyParts: null },
-  { id: 'upper', label: 'Upper Body', bodyParts: ['upper'] },
-  { id: 'lower', label: 'Lower Body', bodyParts: ['lower'] },
-  { id: 'core',  label: 'Core',       bodyParts: ['core'] },
+  { id: 'all',   label: 'Tous',   bodyParts: null },
+  { id: 'upper', label: 'Haut',   bodyParts: ['upper'] },
+  { id: 'lower', label: 'Bas',    bodyParts: ['lower'] },
+  { id: 'core',  label: 'Tronc',  bodyParts: ['core'] },
 ];
 
 // ---------------------------------------------------------------------------
@@ -104,7 +105,7 @@ export default function MusclesScreen() {
               textShadowOffset: { width: 0, height: 0 },
             }}
           >
-            MUSCLE RANKINGS
+            RANGS MUSCULAIRES
           </Text>
           <View className="mt-3 h-[2px] w-20 bg-cyan-400" />
         </View>
@@ -167,7 +168,7 @@ export default function MusclesScreen() {
               <ShieldCheck size={32} color={overallMeta.glow} strokeWidth={2} />
             </View>
             <Text className="mt-3 text-center text-[9px] font-bold uppercase tracking-[3px] text-slate-400">
-              Overall Rank
+              Rang Global
             </Text>
             <Text
               className="mt-0.5 text-center text-2xl font-black tracking-wider"
@@ -232,7 +233,7 @@ export default function MusclesScreen() {
 
         {/* Debug caption — helps verify the filter took effect at a glance. */}
         <Text className="mb-2 text-center text-[10px] uppercase tracking-[3px] text-slate-600">
-          {muscleIds.length} muscle{muscleIds.length > 1 ? 's' : ''} — {
+          {muscleIds.length} muscle{muscleIds.length > 1 ? 's' : ''} · {
             FILTERS.find(f => f.id === filter)?.label
           }
         </Text>
@@ -300,14 +301,14 @@ export default function MusclesScreen() {
                     className="mt-1 text-center text-[10px] font-bold text-slate-100"
                     numberOfLines={1}
                     adjustsFontSizeToFit
-                    minimumFontScale={0.75}
+                    minimumFontScale={0.7}
                   >
-                    {muscle.nameEn}
+                    {muscle.name}
                   </Text>
 
-                  {/* Tier chip */}
+                  {/* Tier chip — full French label */}
                   <View
-                    className="mt-1 flex-row items-center rounded-md px-1 py-[1px]"
+                    className="mt-1 flex-row items-center rounded-md px-1.5 py-[1px]"
                     style={{
                       borderWidth: 1,
                       borderColor: meta.color,
@@ -316,8 +317,10 @@ export default function MusclesScreen() {
                   >
                     <Shield size={7} color={meta.color} strokeWidth={2.5} />
                     <Text
-                      className="ml-0.5 text-center text-[8px] font-black uppercase"
+                      className="ml-1 text-center text-[8px] font-black uppercase"
                       numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.65}
                       style={{
                         color: meta.color,
                         textShadowColor: meta.glow,
@@ -325,9 +328,18 @@ export default function MusclesScreen() {
                         letterSpacing: 0.5,
                       }}
                     >
-                      {meta.shortLabel}
+                      {meta.label}
                     </Text>
                   </View>
+
+                  {/* Mastery sub-title — family-level mastery name (Initié / Expert…) */}
+                  <Text
+                    className="mt-0.5 text-center text-[8px] italic tracking-widest"
+                    numberOfLines={1}
+                    style={{ color: meta.glow, opacity: 0.85 }}
+                  >
+                    {getMasteryTitle(tier)}
+                  </Text>
 
                   {/* Progress bar */}
                   <View className="mt-1.5 w-full">
