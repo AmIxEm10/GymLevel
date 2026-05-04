@@ -2162,12 +2162,17 @@ export const selectAllTemplates = (s: AppState) => [
 ];
 export const selectActiveQuests = (s: AppState) => s.activeQuests;
 /**
- * Admin gate — strictly tied to the nickname "Maxime" (case-insensitive,
- * trimmed). When true, the Profile screen shows the CONSOLE SYSTÈME
- * button and `/admin/console` becomes accessible.
+ * Admin gate — only active in development / preview builds via the
+ * EXPO_PUBLIC_ADMIN_ENABLED env variable injected by eas.json.
+ *
+ * Security fix S-01: the previous implementation granted admin access to any
+ * user whose nickname was "Maxime" (case-insensitive). Any user could
+ * trivially gain access to the admin console (unlimited XP, anti-cheat bypass,
+ * full reset) simply by entering that name during onboarding. The gate is now
+ * build-time only and resolves to false in production builds.
  */
-export const selectIsAdmin = (s: AppState) =>
-  (s.profile.nickname ?? '').trim().toLowerCase() === 'maxime';
+export const selectIsAdmin = (_s: AppState): boolean =>
+  process.env.EXPO_PUBLIC_ADMIN_ENABLED === 'true';
 
 export const selectPlayerClass = (s: AppState) =>
   getPlayerClass(s.profile.playerClassId);

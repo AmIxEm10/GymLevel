@@ -51,7 +51,7 @@ export default function WorkoutRecapScreen() {
           Aucune mission récente.
         </Text>
         <Pressable
-          onPress={() => router.replace('/')}
+          onPress={() => router.push('/')}
           className="mt-4 rounded-xl border border-blue-500/50 bg-blue-500/10 px-4 py-2 active:opacity-70"
         >
           <Text className="text-xs font-bold uppercase tracking-widest text-blue-200">
@@ -286,7 +286,7 @@ export default function WorkoutRecapScreen() {
       {/* Footer */}
       <View className="border-t border-slate-800 bg-[#020617]/80 px-5 py-4">
         <Pressable
-          onPress={() => router.replace('/')}
+          onPress={() => router.push('/')}
           className="flex-row items-center justify-center rounded-2xl border-2 border-blue-400 bg-blue-500/20 py-4 active:opacity-70"
           style={{
             shadowColor: '#60A5FA',
