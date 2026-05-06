@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import {
   Check,
   ChevronRight,
@@ -124,6 +125,15 @@ export default function WorkoutActiveScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIdx, activeSession?.id]);
 
+  // U-01 — Keep the screen awake during an active workout session so the
+  // display does not lock while the user performs a set hands-free.
+  useEffect(() => {
+    activateKeepAwakeAsync();
+    return () => {
+      deactivateKeepAwake();
+    };
+  }, []);
+
   // Cleanup phase-reset + rest timers on unmount
   useEffect(() => {
     return () => {
@@ -206,13 +216,15 @@ export default function WorkoutActiveScreen() {
 
   const finishSession = () => {
     endSession();
-    // After endSession the profile is updated and the session is pushed onto
-    // history — the recap screen reads workoutHistory[0] to render the bilan.
-    router.replace('/workout/recap');
+    // U-03 — Use push() instead of replace() so the back stack is preserved
+    // and iOS swipe-back / Android hardware-back behave correctly.
+    router.push('/workout/recap');
   };
 
   const cancelSession = () => {
     abandonSession();
+    // Navigate back to root; replace is intentional here (cancelling clears
+    // the workout stack entirely — no reason to allow back-swipe to it).
     router.replace('/');
   };
 

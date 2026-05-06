@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 'react-native';
 
 import { useAppStore } from '@/store/useAppStore';
 
@@ -80,6 +80,12 @@ export function BiometricModal({ field, onClose }: Props) {
 
   return (
     <Modal visible={field !== null} transparent animationType="fade" onRequestClose={onClose}>
+      {/* F-04 — KeyboardAvoidingView prevents the keyboard from covering the
+          value display and Save button on small iPhones. */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <Pressable
         onPress={onClose}
         className="flex-1 items-center justify-center px-6"
@@ -196,6 +202,7 @@ export function BiometricModal({ field, onClose }: Props) {
           </Pressable>
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

@@ -20,7 +20,9 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -139,10 +141,17 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-[#020617]">
+      {/* F-04 — KeyboardAvoidingView prevents the keyboard from covering the
+          nickname TextInput and the Next button on small iPhones (SE, mini). */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <View className="px-6 pt-3 pb-4">
@@ -263,6 +272,7 @@ export default function OnboardingScreen() {
         onConfirm={finalize}
         onCancel={() => setShowAcceptModal(false)}
       />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
