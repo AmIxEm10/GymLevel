@@ -671,7 +671,7 @@ export default function ProfileScreen() {
               </Text>
             </Pressable>
             <Text className="mt-1.5 text-center text-[9px] italic text-slate-600">
-              Accès privilégié · Maxime uniquement
+              Accès privilégié
             </Text>
           </View>
         ) : null}

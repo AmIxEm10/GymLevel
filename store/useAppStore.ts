@@ -324,7 +324,7 @@ interface AppState {
   lastConsumed: ConsumableItem | null;
   dismissLastConsumed: () => void;
 
-  // --- Admin (Maxime only) -----------------------------------------------
+  // --- Admin -------------------------------------------------------------
   /** Runtime flag — when true, simulationDetected / densityWarning are never set. */
   antiCheatBypass: boolean;
   adminGrantXp: (amount: number) => void;
@@ -1687,7 +1687,7 @@ export const useAppStore = create<AppState>()(
       },
 
       // -------------------------------------------------------------------
-      // Admin (only effective when profile.nickname === 'Maxime')
+      // Admin
       // -------------------------------------------------------------------
       adminGrantXp: amount => {
         set(s => {
