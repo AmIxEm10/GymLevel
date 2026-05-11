@@ -305,6 +305,7 @@ export default function WorkoutActiveScreen() {
           </View>
           <Pressable
             onPress={cancelSession}
+            aria-label="Fermer"
             className="rounded-lg border border-slate-700 bg-white/5 p-2 active:opacity-60"
           >
             <X size={16} color="#94A3B8" />
@@ -414,12 +415,14 @@ export default function WorkoutActiveScreen() {
               <View className="flex-row items-center gap-2">
                 <Pressable
                   onPress={() => adjustWeight(-2.5)}
+                  aria-label="Diminuer le poids"
                   className="h-10 w-10 items-center justify-center rounded-xl border border-blue-500/40 bg-blue-500/10 active:bg-blue-500/25"
                 >
                   <Minus size={18} color="#93C5FD" strokeWidth={2.5} />
                 </Pressable>
                 <Pressable
                   onPress={() => adjustWeight(2.5)}
+                  aria-label="Augmenter le poids"
                   className="h-10 w-10 items-center justify-center rounded-xl border border-blue-500/40 bg-blue-500/10 active:bg-blue-500/25"
                 >
                   <Plus size={18} color="#93C5FD" strokeWidth={2.5} />
