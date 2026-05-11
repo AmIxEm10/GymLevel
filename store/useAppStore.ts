@@ -1455,8 +1455,16 @@ export const useAppStore = create<AppState>()(
         } = get();
 
         const expired = expireQuests(activeQuests, now);
-        const stillActive = expired.filter(q => q.status === 'active');
-        const movedToCompleted = expired.filter(q => q.status === 'completed');
+        const stillActive: Quest[] = [];
+        const movedToCompleted: Quest[] = [];
+
+        for (const q of expired) {
+          if (q.status === 'active') {
+            stillActive.push(q);
+          } else if (q.status === 'completed') {
+            movedToCompleted.push(q);
+          }
+        }
 
         const needsNew =
           force ||
