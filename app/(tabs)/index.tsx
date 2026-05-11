@@ -75,8 +75,15 @@ export default function QuestsScreen() {
 
   const [tab, setTab] = useState<QuestTab>('daily');
 
-  const activeCount = activeQuests.filter(q => q.status === 'active').length;
-  const completedCount = activeQuests.filter(q => q.status === 'completed').length;
+  const { activeCount, completedCount } = useMemo(() => {
+    let active = 0;
+    let completed = 0;
+    for (const q of activeQuests) {
+      if (q.status === 'active') active++;
+      else if (q.status === 'completed') completed++;
+    }
+    return { activeCount: active, completedCount: completed };
+  }, [activeQuests]);
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-[#020617]">
