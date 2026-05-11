@@ -24,6 +24,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DungeonEntryModal } from '@/components/DungeonEntryModal';
 import { RankEmblem } from '@/components/RankEmblem';
+import { useShallow } from 'zustand/react/shallow';
+
 import { EXERCISES, EXERCISES_BY_ID } from '@/data/exercises';
 import { MUSCLE_GROUP_BY_ID } from '@/data/muscleGroups';
 import { RANK_META, type Rank } from '@/data/ranks';
@@ -97,7 +99,8 @@ const CATEGORY_GROUPS: Array<{ id: ExerciseCategory; label: string }> = [
 // ---------------------------------------------------------------------------
 
 export default function WorkoutSelectionScreen() {
-  const templates = useAppStore(selectAllTemplates);
+  // ⚡ Bolt: useShallow prevents re-rendering on unrelated state changes when returning new array refs
+  const templates = useAppStore(useShallow(selectAllTemplates));
   const activeSession = useAppStore(selectActiveSession);
   const startSessionFromTemplate = useAppStore(
     s => s.startSessionFromTemplate,

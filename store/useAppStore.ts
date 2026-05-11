@@ -2192,8 +2192,11 @@ export const selectInventory = (s: AppState) => s.profile.inventory;
 export const selectEquipped = (s: AppState) => s.profile.inventory.equipped;
 export const selectLastLootDrop = (s: AppState) => s.lastLootDrop;
 
+// ⚡ Bolt: Stable reference for empty messages to prevent unnecessary re-renders when defaulting
+const EMPTY_MESSAGES: SystemMessage[] = [];
+
 /** Mailbox — full list + unread count for the badge. */
-export const selectMessages = (s: AppState) => s.profile.messages ?? [];
+export const selectMessages = (s: AppState) => s.profile.messages ?? EMPTY_MESSAGES;
 export const selectUnreadCount = (s: AppState) =>
   (s.profile.messages ?? []).filter(m => !m.read).length;
 
