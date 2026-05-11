@@ -153,56 +153,9 @@ export default function OnboardingScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
-        <View className="px-6 pt-3 pb-4">
-          <Text className="text-[10px] font-semibold tracking-[6px] text-blue-400/70">
-            LE SYSTÈME
-          </Text>
-          <Text
-            className="mt-1 text-4xl font-black tracking-[4px] text-blue-300"
-            style={{
-              textShadowColor: '#60A5FA',
-              textShadowRadius: 18,
-              textShadowOffset: { width: 0, height: 0 },
-            }}
-          >
-            ÉVEIL
-          </Text>
-          <Text className="mt-2 text-xs italic text-slate-500">
-            Le Système enregistre un nouveau Chasseur. Renseigne tes paramètres
-            d'initialisation.
-          </Text>
-        </View>
+        <OnboardingHeader />
 
-        {/* Steps progress */}
-        <View className="px-6 pb-6 flex-row">
-          {(Object.keys(STEP_LABELS) as Step[]).map((s, i) => {
-            const active = s === step;
-            const passed =
-              (Object.keys(STEP_LABELS) as Step[]).indexOf(step) > i;
-            return (
-              <View key={s} className="flex-1 mx-0.5">
-                <View
-                  className="h-[3px] rounded-full"
-                  style={{
-                    backgroundColor: active || passed ? '#60A5FA' : '#1E293B',
-                    shadowColor: '#60A5FA',
-                    shadowOpacity: active ? 0.9 : 0,
-                    shadowRadius: active ? 8 : 0,
-                    shadowOffset: { width: 0, height: 0 },
-                  }}
-                />
-                <Text
-                  className={`mt-1 text-[9px] uppercase tracking-[3px] ${
-                    active ? 'text-blue-300' : 'text-slate-600'
-                  }`}
-                >
-                  {STEP_LABELS[s]}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
+        <OnboardingProgress step={step} />
 
         {/* Step content */}
         <Animated.View style={{ opacity: fadeAnim, paddingHorizontal: 24 }}>
@@ -226,45 +179,13 @@ export default function OnboardingScreen() {
       </ScrollView>
 
       {/* Footer actions */}
-      <View className="flex-row items-center justify-between border-t border-slate-800 bg-[#020617]/90 px-5 py-4">
-        <Pressable
-          onPress={handleBack}
-          disabled={step === 'identity'}
-          className={`flex-row items-center rounded-xl border px-4 py-3 ${
-            step === 'identity'
-              ? 'border-slate-800 bg-slate-900/40 opacity-40'
-              : 'border-slate-700 bg-white/5 active:opacity-70'
-          }`}
-        >
-          <ChevronLeft size={14} color="#94A3B8" strokeWidth={2.25} />
-          <Text className="ml-1 text-[11px] font-bold uppercase tracking-widest text-slate-400">
-            Retour
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={handleNext}
-          disabled={
-            (step === 'identity' && !canNextFromIdentity) ||
-            (step === 'bodyweight' && !canNextFromBodyweight)
-          }
-          className="flex-row items-center rounded-xl border-2 border-blue-400 bg-blue-500/20 px-5 py-3 active:opacity-70"
-          style={{
-            shadowColor: '#60A5FA',
-            shadowOpacity: 0.8,
-            shadowRadius: 14,
-            shadowOffset: { width: 0, height: 0 },
-          }}
-        >
-          <Text
-            className="mr-2 text-xs font-black uppercase tracking-[4px] text-blue-100"
-            style={{ textShadowColor: '#60A5FA', textShadowRadius: 8 }}
-          >
-            {step === 'accept' ? 'Accepter le pacte' : 'Continuer'}
-          </Text>
-          <ChevronRight size={14} color="#93C5FD" strokeWidth={2.25} />
-        </Pressable>
-      </View>
+      <OnboardingFooter
+        step={step}
+        canNextFromIdentity={canNextFromIdentity}
+        canNextFromBodyweight={canNextFromBodyweight}
+        handleBack={handleBack}
+        handleNext={handleNext}
+      />
 
       {/* Accept modal */}
       <AcceptTermsModal
@@ -274,6 +195,122 @@ export default function OnboardingScreen() {
       />
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding components
+// ---------------------------------------------------------------------------
+
+function OnboardingHeader() {
+  return (
+    <View className="px-6 pt-3 pb-4">
+      <Text className="text-[10px] font-semibold tracking-[6px] text-blue-400/70">
+        LE SYSTÈME
+      </Text>
+      <Text
+        className="mt-1 text-4xl font-black tracking-[4px] text-blue-300"
+        style={{
+          textShadowColor: '#60A5FA',
+          textShadowRadius: 18,
+          textShadowOffset: { width: 0, height: 0 },
+        }}
+      >
+        ÉVEIL
+      </Text>
+      <Text className="mt-2 text-xs italic text-slate-500">
+        Le Système enregistre un nouveau Chasseur. Renseigne tes paramètres
+        d'initialisation.
+      </Text>
+    </View>
+  );
+}
+
+function OnboardingProgress({ step }: { step: Step }) {
+  return (
+    <View className="px-6 pb-6 flex-row">
+      {(Object.keys(STEP_LABELS) as Step[]).map((s, i) => {
+        const active = s === step;
+        const passed = (Object.keys(STEP_LABELS) as Step[]).indexOf(step) > i;
+        return (
+          <View key={s} className="flex-1 mx-0.5">
+            <View
+              className="h-[3px] rounded-full"
+              style={{
+                backgroundColor: active || passed ? '#60A5FA' : '#1E293B',
+                shadowColor: '#60A5FA',
+                shadowOpacity: active ? 0.9 : 0,
+                shadowRadius: active ? 8 : 0,
+                shadowOffset: { width: 0, height: 0 },
+              }}
+            />
+            <Text
+              className={`mt-1 text-[9px] uppercase tracking-[3px] ${
+                active ? 'text-blue-300' : 'text-slate-600'
+              }`}
+            >
+              {STEP_LABELS[s]}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function OnboardingFooter({
+  step,
+  canNextFromIdentity,
+  canNextFromBodyweight,
+  handleBack,
+  handleNext,
+}: {
+  step: Step;
+  canNextFromIdentity: boolean;
+  canNextFromBodyweight: boolean;
+  handleBack: () => void;
+  handleNext: () => void;
+}) {
+  return (
+    <View className="flex-row items-center justify-between border-t border-slate-800 bg-[#020617]/90 px-5 py-4">
+      <Pressable
+        onPress={handleBack}
+        disabled={step === 'identity'}
+        className={`flex-row items-center rounded-xl border px-4 py-3 ${
+          step === 'identity'
+            ? 'border-slate-800 bg-slate-900/40 opacity-40'
+            : 'border-slate-700 bg-white/5 active:opacity-70'
+        }`}
+      >
+        <ChevronLeft size={14} color="#94A3B8" strokeWidth={2.25} />
+        <Text className="ml-1 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+          Retour
+        </Text>
+      </Pressable>
+
+      <Pressable
+        onPress={handleNext}
+        disabled={
+          (step === 'identity' && !canNextFromIdentity) ||
+          (step === 'bodyweight' && !canNextFromBodyweight)
+        }
+        className="flex-row items-center rounded-xl border-2 border-blue-400 bg-blue-500/20 px-5 py-3 active:opacity-70"
+        style={{
+          shadowColor: '#60A5FA',
+          shadowOpacity: 0.8,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 0 },
+        }}
+      >
+        <Text
+          className="mr-2 text-xs font-black uppercase tracking-[4px] text-blue-100"
+          style={{ textShadowColor: '#60A5FA', textShadowRadius: 8 }}
+        >
+          {step === 'accept' ? 'Accepter le pacte' : 'Continuer'}
+        </Text>
+        <ChevronRight size={14} color="#93C5FD" strokeWidth={2.25} />
+      </Pressable>
+    </View>
   );
 }
 
