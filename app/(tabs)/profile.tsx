@@ -189,6 +189,7 @@ export default function ProfileScreen() {
           {/* Boîte aux Lettres — icon with unread pill */}
           <Pressable
             onPress={() => router.push('/mailbox')}
+            aria-label="Messagerie"
             className="relative rounded-xl border border-blue-500/40 bg-blue-500/10 p-2.5 active:opacity-70"
             style={{
               shadowColor: unreadCount > 0 ? '#F43F5E' : '#22D3EE',
@@ -240,12 +241,14 @@ export default function ProfileScreen() {
                   />
                   <Pressable
                     onPress={commitNickname}
+                    aria-label="Valider le nom"
                     className="ml-2 rounded-lg border border-cyan-400/60 bg-cyan-500/20 px-3 py-2 active:opacity-60"
                   >
                     <Check size={14} color="#A5F3FC" />
                   </Pressable>
                   <Pressable
                     onPress={cancelNicknameEdit}
+                    aria-label="Annuler"
                     className="ml-1.5 rounded-lg border border-slate-700 bg-slate-800/60 p-2 active:opacity-60"
                   >
                     <X size={14} color="#94A3B8" />

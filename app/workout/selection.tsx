@@ -173,6 +173,7 @@ export default function WorkoutSelectionScreen() {
           </View>
           <Pressable
             onPress={() => router.back()}
+            aria-label="Fermer"
             className="rounded-lg border border-slate-700 bg-white/5 p-2 active:opacity-60"
           >
             <X size={16} color="#94A3B8" />
@@ -552,6 +553,7 @@ function CreateTemplateModal({
             </View>
             <Pressable
               onPress={close}
+              aria-label="Fermer"
               className="rounded-lg border border-slate-700 bg-white/5 p-2 active:opacity-60"
             >
               <X size={16} color="#94A3B8" />
