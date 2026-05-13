@@ -99,6 +99,7 @@ export function SecretQuestModal() {
             </View>
             <Pressable
               onPress={dismiss}
+              aria-label="Fermer"
               className="rounded-lg border border-slate-800 bg-white/[0.03] p-1.5 active:opacity-60"
             >
               <X size={14} color="#94A3B8" />
