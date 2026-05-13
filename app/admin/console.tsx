@@ -94,6 +94,7 @@ export default function AdminConsoleScreen() {
           </View>
           <Pressable
             onPress={() => router.back()}
+            aria-label="Retour"
             className="rounded-lg border border-slate-700 bg-white/5 p-2 active:opacity-60"
           >
             <X size={16} color="#94A3B8" />
