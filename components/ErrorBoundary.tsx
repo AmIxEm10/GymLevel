@@ -37,7 +37,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // Log to your monitoring service here (e.g. Sentry) when integrated.
-    console.error('[ErrorBoundary] Uncaught error:', error, info.componentStack);
+    if (__DEV__) {
+      console.error('[ErrorBoundary] Uncaught error:', error, info.componentStack);
+    }
   }
 
   private handleReload = async () => {
