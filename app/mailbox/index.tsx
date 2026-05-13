@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Inbox, Mail, MailOpen, X } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { memo, useCallback, useEffect, useState } from 'react';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -65,6 +65,10 @@ export default function MailboxScreen() {
     }
   }, [openMessage, markMessageRead]);
 
+  const handlePressMessage = useCallback((id: string) => {
+    setOpenId(id);
+  }, []);
+
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-[#020617]">
       {/* Header */}
@@ -108,25 +112,17 @@ export default function MailboxScreen() {
         </View>
       ) : null}
 
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: 60 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {sorted.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <View className="px-5" style={{ gap: 8 }}>
-            {sorted.map(m => (
-              <MessageCard
-                key={m.id}
-                message={m}
-                onPress={() => setOpenId(m.id)}
-              />
-            ))}
-          </View>
+      <FlatList
+        data={sorted}
+        keyExtractor={m => m.id}
+        renderItem={({ item }) => (
+          <MessageCard message={item} onPress={handlePressMessage} />
         )}
-      </ScrollView>
+        ListEmptyComponent={<EmptyState />}
+        contentContainerStyle={{ paddingBottom: 60, paddingHorizontal: 20, gap: 8 }}
+        showsVerticalScrollIndicator={false}
+        className="flex-1"
+      />
 
       {/* Message detail modal — simple overlay pane */}
       {openMessage ? (
@@ -204,18 +200,18 @@ export default function MailboxScreen() {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function MessageCard({
+const MessageCard = memo(function MessageCard({
   message,
   onPress,
 }: {
   message: SystemMessage;
-  onPress: () => void;
+  onPress: (id: string) => void;
 }) {
   const palette = TONE_PALETTE[message.tone];
   const unread = !message.read;
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onPress(message.id)}
       className="flex-row items-center rounded-2xl border p-3 active:opacity-70"
       style={{
         borderColor: unread ? palette.color : '#1e293b',
@@ -280,7 +276,7 @@ function MessageCard({
       ) : null}
     </Pressable>
   );
-}
+});
 
 function EmptyState() {
   return (
