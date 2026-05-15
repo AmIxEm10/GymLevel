@@ -94,6 +94,14 @@ const CATEGORY_GROUPS: Array<{ id: ExerciseCategory; label: string }> = [
   { id: 'hiit', label: 'HIIT' },
 ];
 
+// ⚡ Bolt: Pre-calculate the mapping of exercises by category once at load time.
+// This prevents running an O(n) `.filter()` over the entire EXERCISES list
+// on every render inside CreateTemplateModal, reducing CPU overhead.
+const EXERCISES_BY_CATEGORY = CATEGORY_GROUPS.reduce((acc, group) => {
+  acc[group.id] = EXERCISES.filter(ex => ex.category === group.id);
+  return acc;
+}, {} as Record<ExerciseCategory, typeof EXERCISES>);
+
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
@@ -610,7 +618,7 @@ function CreateTemplateModal({
                   ◆ {group.label}
                 </Text>
                 <View className="mt-1.5 gap-1">
-                  {EXERCISES.filter(ex => ex.category === group.id).map(ex => {
+                  {EXERCISES_BY_CATEGORY[group.id].map(ex => {
                     const isSelected = selectedIds.includes(ex.id);
                     return (
                       <Pressable
