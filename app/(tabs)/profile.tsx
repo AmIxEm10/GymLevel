@@ -895,6 +895,7 @@ function TitleDetailModal({
         {/* Close button */}
         <Pressable
           onPress={onClose}
+          aria-label="Fermer"
           className="absolute right-3 top-3 rounded-lg border border-slate-700 bg-white/5 p-1.5 active:opacity-60"
         >
           <X size={12} color="#94A3B8" />

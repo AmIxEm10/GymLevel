@@ -91,6 +91,7 @@ export default function MailboxScreen() {
         </View>
         <Pressable
           onPress={() => router.back()}
+          aria-label="Fermer"
           className="rounded-lg border border-slate-700 bg-white/5 p-2 active:opacity-60"
         >
           <X size={16} color="#94A3B8" />
@@ -158,6 +159,7 @@ export default function MailboxScreen() {
               </Text>
               <Pressable
                 onPress={() => setOpenId(null)}
+                aria-label="Fermer"
                 className="rounded-lg border border-slate-700 bg-white/5 p-1.5 active:opacity-60"
               >
                 <X size={12} color="#94A3B8" />

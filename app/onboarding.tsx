@@ -357,6 +357,7 @@ function BodyweightStep({
       <View className="mt-2 flex-row items-center justify-between rounded-2xl border border-blue-500/40 bg-slate-900/60 p-4">
         <Pressable
           onPress={() => bump(-1)}
+          aria-label="Diminuer"
           className="h-14 w-14 items-center justify-center rounded-xl border border-blue-500/50 bg-blue-500/10 active:opacity-70"
         >
           <Minus size={22} color="#93C5FD" strokeWidth={2.5} />
@@ -369,6 +370,7 @@ function BodyweightStep({
         </Text>
         <Pressable
           onPress={() => bump(1)}
+          aria-label="Augmenter"
           className="h-14 w-14 items-center justify-center rounded-xl border border-blue-500/50 bg-blue-500/10 active:opacity-70"
         >
           <Plus size={22} color="#93C5FD" strokeWidth={2.5} />
@@ -613,6 +615,7 @@ function AcceptTermsModal({
             </Text>
             <Pressable
               onPress={onCancel}
+              aria-label="Fermer"
               className="rounded-lg border border-slate-700 bg-white/5 p-1.5 active:opacity-60"
             >
               <X size={14} color="#94A3B8" />
