@@ -88,6 +88,7 @@ export function BiometricModal({ field, onClose }: Props) {
       >
       <Pressable
         onPress={onClose}
+        aria-label="Close"
         className="flex-1 items-center justify-center px-6"
         style={{
           backgroundColor: 'rgba(2,6,23,0.88)',
@@ -124,6 +125,7 @@ export function BiometricModal({ field, onClose }: Props) {
             </View>
             <Pressable
               onPress={onClose}
+              aria-label="Close"
               className="rounded-lg border border-slate-700 bg-white/5 p-1.5 active:opacity-60"
             >
               <X size={14} color="#94A3B8" />
@@ -141,9 +143,9 @@ export function BiometricModal({ field, onClose }: Props) {
           {/* Value + buttons */}
           <View className="mt-5 flex-row items-center justify-between rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
             <View className="flex-row">
-              <AdjustBtn onPress={() => bump(-10 * config.step)} color={config.color} label="-10" />
+              <AdjustBtn onPress={() => bump(-10 * config.step)} color={config.color} label="-10" aria-label={`Decrease by 10`} />
               <View style={{ width: 8 }} />
-              <AdjustBtn onPress={() => bump(-config.step)} color={config.color} icon={Minus} />
+              <AdjustBtn onPress={() => bump(-config.step)} color={config.color} icon={Minus} aria-label={`Decrease by 1`} />
             </View>
 
             <View className="items-center">
@@ -163,9 +165,9 @@ export function BiometricModal({ field, onClose }: Props) {
             </View>
 
             <View className="flex-row">
-              <AdjustBtn onPress={() => bump(config.step)} color={config.color} icon={Plus} />
+              <AdjustBtn onPress={() => bump(config.step)} color={config.color} icon={Plus} aria-label={`Increase by 1`} />
               <View style={{ width: 8 }} />
-              <AdjustBtn onPress={() => bump(10 * config.step)} color={config.color} label="+10" />
+              <AdjustBtn onPress={() => bump(10 * config.step)} color={config.color} label="+10" aria-label={`Increase by 10`} />
             </View>
           </View>
 
@@ -212,15 +214,18 @@ function AdjustBtn({
   color,
   icon: Icon,
   label,
+  'aria-label': ariaLabel,
 }: {
   onPress: () => void;
   color: string;
   icon?: LucideIcon;
   label?: string;
+  'aria-label'?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      aria-label={ariaLabel}
       className="h-10 w-10 items-center justify-center rounded-lg border active:opacity-60"
       style={{
         borderColor: `${color}80`,
