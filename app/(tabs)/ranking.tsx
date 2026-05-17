@@ -1,6 +1,6 @@
 import { Crown, Globe, Shield, Users, Map } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useMemo, useState, useCallback } from 'react';
+import { Pressable, FlatList, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PLAYER_CLASSES_BY_ID } from '@/data/playerClasses';
@@ -110,89 +110,97 @@ export default function RankingScreen() {
     return mixed.map((e, i) => ({ ...e, rank: i + 1 }));
   }, [profile, scope]);
 
+  const renderItem = useCallback(({ item }: { item: LeaderEntry }) => (
+    <LeaderRow entry={item} />
+  ), []);
+
+  const ListHeaderComponent = useCallback(() => (
+    <>
+      {/* Header */}
+      <View className="items-center pt-4 pb-4">
+        <Text className="text-[10px] font-semibold tracking-[6px] text-center text-blue-400/70">
+          LE SYSTÈME
+        </Text>
+        <Text
+          className="mt-1 text-3xl font-black tracking-[3px] text-center text-blue-300"
+          style={{
+            textShadowColor: '#22D3EE',
+            textShadowRadius: 18,
+            textShadowOffset: { width: 0, height: 0 },
+          }}
+        >
+          RANKING
+        </Text>
+        <View className="mt-3 h-[2px] w-20 bg-cyan-400" />
+        <Text className="mt-2 text-center text-[10px] uppercase tracking-widest text-slate-500">
+          Trié par rang musculaire global
+        </Text>
+      </View>
+
+      {/* Scope toggle */}
+      <View className="mb-4 flex-row rounded-full border border-blue-500/30 bg-white/[0.03] p-1">
+        {(
+          [
+            { id: 'world',    label: 'Mondial',  Icon: Globe },
+            { id: 'regional', label: 'Régional', Icon: Map },
+            { id: 'friends',  label: 'Amis',     Icon: Users },
+          ] as const
+        ).map(({ id, label, Icon }) => {
+          const active = scope === id;
+          return (
+            <Pressable
+              key={id}
+              onPress={() => setScope(id)}
+              className="flex-1 flex-row items-center justify-center rounded-full py-2 active:opacity-70"
+              style={{
+                backgroundColor: active ? 'rgba(34,211,238,0.20)' : 'transparent',
+                borderWidth: active ? 1 : 0,
+                borderColor: '#22D3EE',
+                shadowColor: active ? '#22D3EE' : 'transparent',
+                shadowOpacity: active ? 0.7 : 0,
+                shadowRadius: active ? 10 : 0,
+                shadowOffset: { width: 0, height: 0 },
+              }}
+            >
+              <Icon
+                size={12}
+                color={active ? '#A5F3FC' : '#64748B'}
+                strokeWidth={2.25}
+              />
+              <Text
+                className={`ml-1.5 text-[11px] font-black uppercase tracking-[3px] ${
+                  active ? 'text-cyan-200' : 'text-slate-500'
+                }`}
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
+  ), [scope]);
+
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-[#020617]">
-      <ScrollView
+      <FlatList
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 48 }}
+        data={entries}
+        keyExtractor={e => `${e.rank}-${e.name}`}
+        renderItem={renderItem}
+        ListHeaderComponent={ListHeaderComponent}
+        contentContainerStyle={{ paddingBottom: 48, gap: 8, paddingHorizontal: 20 }}
         showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View className="items-center px-5 pt-4 pb-4">
-          <Text className="text-[10px] font-semibold tracking-[6px] text-center text-blue-400/70">
-            LE SYSTÈME
-          </Text>
-          <Text
-            className="mt-1 text-3xl font-black tracking-[3px] text-center text-blue-300"
-            style={{
-              textShadowColor: '#22D3EE',
-              textShadowRadius: 18,
-              textShadowOffset: { width: 0, height: 0 },
-            }}
-          >
-            RANKING
-          </Text>
-          <View className="mt-3 h-[2px] w-20 bg-cyan-400" />
-          <Text className="mt-2 text-center text-[10px] uppercase tracking-widest text-slate-500">
-            Trié par rang musculaire global
-          </Text>
-        </View>
-
-        {/* Scope toggle */}
-        <View className="mx-5 mb-4 flex-row rounded-full border border-blue-500/30 bg-white/[0.03] p-1">
-          {(
-            [
-              { id: 'world',    label: 'Mondial',  Icon: Globe },
-              { id: 'regional', label: 'Régional', Icon: Map },
-              { id: 'friends',  label: 'Amis',     Icon: Users },
-            ] as const
-          ).map(({ id, label, Icon }) => {
-            const active = scope === id;
-            return (
-              <Pressable
-                key={id}
-                onPress={() => setScope(id)}
-                className="flex-1 flex-row items-center justify-center rounded-full py-2 active:opacity-70"
-                style={{
-                  backgroundColor: active ? 'rgba(34,211,238,0.20)' : 'transparent',
-                  borderWidth: active ? 1 : 0,
-                  borderColor: '#22D3EE',
-                  shadowColor: active ? '#22D3EE' : 'transparent',
-                  shadowOpacity: active ? 0.7 : 0,
-                  shadowRadius: active ? 10 : 0,
-                  shadowOffset: { width: 0, height: 0 },
-                }}
-              >
-                <Icon
-                  size={12}
-                  color={active ? '#A5F3FC' : '#64748B'}
-                  strokeWidth={2.25}
-                />
-                <Text
-                  className={`ml-1.5 text-[11px] font-black uppercase tracking-[3px] ${
-                    active ? 'text-cyan-200' : 'text-slate-500'
-                  }`}
-                  numberOfLines={1}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Leaderboard list */}
-        <View className="px-5" style={{ gap: 8 }}>
-          {entries.map(e => (
-            <LeaderRow key={`${e.rank}-${e.name}`} entry={e} />
-          ))}
-        </View>
-      </ScrollView>
+        initialNumToRender={10}
+        windowSize={5}
+        maxToRenderPerBatch={10}
+      />
     </SafeAreaView>
   );
 }
 
-function LeaderRow({ entry }: { entry: LeaderEntry }) {
+const LeaderRow = React.memo(function LeaderRow({ entry }: { entry: LeaderEntry }) {
   const cls = PLAYER_CLASSES_BY_ID[entry.classId];
   const classColor = cls?.colorHex ?? '#60A5FA';
   const top3 = entry.rank <= 3;
@@ -301,4 +309,4 @@ function LeaderRow({ entry }: { entry: LeaderEntry }) {
       </View>
     </View>
   );
-}
+});

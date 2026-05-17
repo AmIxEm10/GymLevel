@@ -1,3 +1,6 @@
 ## 2024-06-25 - React Native Zustand Shallow Rendering
 **Learning:** Returning dynamically created arrays (`[...a, ...b]` or `?? []`) inside Zustand selectors bypasses the default strict-equality (`===`) checks, triggering re-renders on the entire component tree on any unrelated state update.
 **Action:** Always provide static empty arrays (`const EMPTY_MESSAGES = []`) as fallbacks in selectors and use `useShallow` from `zustand/react/shallow` in the component side when dealing with dynamically assembled arrays to prevent UI thrashing.
+## 2026-05-17 - FlatList Component Performance
+**Learning:** When migrating a ScrollView with inline map to a FlatList to avoid rendering large sequences of items simultaneously (increasing memory consumption), padding horizontal or margins applied inline originally inside map elements can create visual regressions such as double padding if they are placed into a ListHeaderComponent while paddingHorizontal is applied on the FlatList's contentContainerStyle.
+**Action:** When migrating layout containers into FlatList components like contentContainerStyle and ListHeaderComponent, ensure layout attributes such as px-5 or mx-5 do not double stack the spacing offsets.
