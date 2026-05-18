@@ -86,6 +86,7 @@ export function InventoryItemDetailModal({
             </View>
             <Pressable
               onPress={onClose}
+              aria-label="Close"
               className="rounded-lg border border-slate-700 bg-white/5 p-1.5 active:opacity-60"
             >
               <X size={14} color="#94A3B8" />
