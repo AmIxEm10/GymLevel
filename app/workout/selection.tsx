@@ -11,8 +11,9 @@ import {
   X,
   Zap,
 } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
+  FlatList,
   Modal,
   Pressable,
   ScrollView,
@@ -20,6 +21,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DungeonEntryModal } from '@/components/DungeonEntryModal';
@@ -477,6 +479,57 @@ function SpecChip({
 // Create template modal
 // ---------------------------------------------------------------------------
 
+type ListItem =
+  | { type: 'header'; id: string; label: string }
+  | { type: 'exercise'; id: string; name: string; movement: string; equipment: string };
+
+const ExerciseListItem = React.memo(({ item, isSelected, onToggle }: { item: Extract<ListItem, { type: 'exercise' }>; isSelected: boolean; onToggle: (id: string) => void }) => {
+  return (
+    <Pressable
+      onPress={() => onToggle(item.id)}
+      className={`flex-row items-center rounded-xl border px-3 py-2.5 active:opacity-70 ${
+        isSelected
+          ? 'border-blue-500/70 bg-blue-500/10'
+          : 'border-slate-800 bg-white/[0.02]'
+      }`}
+      style={
+        isSelected
+          ? {
+              shadowColor: '#60A5FA',
+              shadowOpacity: 0.6,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: 0 },
+            }
+          : undefined
+      }
+    >
+      <View
+        className={`mr-3 h-5 w-5 items-center justify-center rounded-md border ${
+          isSelected
+            ? 'border-blue-400 bg-blue-500/40'
+            : 'border-slate-600'
+        }`}
+      >
+        {isSelected ? (
+          <Check size={12} color="#E0F2FE" strokeWidth={3} />
+        ) : null}
+      </View>
+      <View className="flex-1">
+        <Text
+          className={`text-sm font-semibold ${
+            isSelected ? 'text-blue-100' : 'text-slate-200'
+          }`}
+        >
+          {item.name}
+        </Text>
+        <Text className="text-[10px] uppercase tracking-widest text-slate-600">
+          {item.movement} · {item.equipment}
+        </Text>
+      </View>
+    </Pressable>
+  );
+});
+
 function CreateTemplateModal({
   visible,
   onClose,
@@ -490,11 +543,31 @@ function CreateTemplateModal({
   const [description, setDescription] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const toggle = (id: string) => {
+  const toggle = useCallback((id: string) => {
     setSelectedIds(s =>
       s.includes(id) ? s.filter(x => x !== id) : [...s, id],
     );
-  };
+  }, []);
+
+  const listData = useMemo(() => {
+    const data: ListItem[] = [];
+    CATEGORY_GROUPS.forEach(group => {
+      const groupEx = EXERCISES.filter(ex => ex.category === group.id);
+      if (groupEx.length > 0) {
+        data.push({ type: 'header', id: `header-${group.id}`, label: group.label });
+        groupEx.forEach(ex => {
+          data.push({
+            type: 'exercise',
+            id: ex.id,
+            name: ex.name,
+            movement: ex.movement,
+            equipment: ex.equipment,
+          });
+        });
+      }
+    });
+    return data;
+  }, []);
 
   const reset = () => {
     setName('');
@@ -560,108 +633,72 @@ function CreateTemplateModal({
             </Pressable>
           </View>
 
-          <ScrollView
+          <FlatList
             className="flex-1"
             contentContainerStyle={{ paddingBottom: 120 }}
             showsVerticalScrollIndicator={false}
-          >
-            {/* Name */}
-            <View className="px-5 pt-4">
-              <Text className="text-[10px] font-bold uppercase tracking-[3px] text-slate-500">
-                Nom du portail
-              </Text>
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                maxLength={40}
-                placeholder="Ex. Donjon de fer — Pectoraux"
-                placeholderTextColor="#475569"
-                selectionColor="#60A5FA"
-                className="mt-1.5 rounded-xl border border-blue-500/60 bg-slate-900/80 px-3 py-3 text-base font-bold text-blue-100"
-                style={{
-                  textShadowColor: '#60A5FA',
-                  textShadowRadius: 5,
-                }}
-              />
-
-              <Text className="mt-4 text-[10px] font-bold uppercase tracking-[3px] text-slate-500">
-                Description (optionnelle)
-              </Text>
-              <TextInput
-                value={description}
-                onChangeText={setDescription}
-                maxLength={120}
-                placeholder="Courte intention — « ravager les pectoraux »"
-                placeholderTextColor="#475569"
-                selectionColor="#60A5FA"
-                className="mt-1.5 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-3 text-sm italic text-slate-200"
-              />
-
-              <Text className="mt-5 text-[10px] font-bold uppercase tracking-[3px] text-slate-500">
-                Exercices ({selectedIds.length} sélectionné
-                {selectedIds.length > 1 ? 's' : ''})
-              </Text>
-            </View>
-
-            {/* Exercise groups */}
-            {CATEGORY_GROUPS.map(group => (
-              <View key={group.id} className="mt-3 px-5">
-                <Text className="text-[11px] font-black uppercase tracking-[3px] text-blue-300/80">
-                  ◆ {group.label}
+            data={listData}
+            keyExtractor={item => item.id}
+            ListHeaderComponent={
+              <View className="px-5 pt-4 pb-3">
+                <Text className="text-[10px] font-bold uppercase tracking-[3px] text-slate-500">
+                  Nom du portail
                 </Text>
-                <View className="mt-1.5 gap-1">
-                  {EXERCISES.filter(ex => ex.category === group.id).map(ex => {
-                    const isSelected = selectedIds.includes(ex.id);
-                    return (
-                      <Pressable
-                        key={ex.id}
-                        onPress={() => toggle(ex.id)}
-                        className={`flex-row items-center rounded-xl border px-3 py-2.5 active:opacity-70 ${
-                          isSelected
-                            ? 'border-blue-500/70 bg-blue-500/10'
-                            : 'border-slate-800 bg-white/[0.02]'
-                        }`}
-                        style={
-                          isSelected
-                            ? {
-                                shadowColor: '#60A5FA',
-                                shadowOpacity: 0.6,
-                                shadowRadius: 10,
-                                shadowOffset: { width: 0, height: 0 },
-                              }
-                            : undefined
-                        }
-                      >
-                        <View
-                          className={`mr-3 h-5 w-5 items-center justify-center rounded-md border ${
-                            isSelected
-                              ? 'border-blue-400 bg-blue-500/40'
-                              : 'border-slate-600'
-                          }`}
-                        >
-                          {isSelected ? (
-                            <Check size={12} color="#E0F2FE" strokeWidth={3} />
-                          ) : null}
-                        </View>
-                        <View className="flex-1">
-                          <Text
-                            className={`text-sm font-semibold ${
-                              isSelected ? 'text-blue-100' : 'text-slate-200'
-                            }`}
-                          >
-                            {ex.name}
-                          </Text>
-                          <Text className="text-[10px] uppercase tracking-widest text-slate-600">
-                            {ex.movement} · {ex.equipment}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  maxLength={40}
+                  placeholder="Ex. Donjon de fer — Pectoraux"
+                  placeholderTextColor="#475569"
+                  selectionColor="#60A5FA"
+                  className="mt-1.5 rounded-xl border border-blue-500/60 bg-slate-900/80 px-3 py-3 text-base font-bold text-blue-100"
+                  style={{
+                    textShadowColor: '#60A5FA',
+                    textShadowRadius: 5,
+                  }}
+                />
+
+                <Text className="mt-4 text-[10px] font-bold uppercase tracking-[3px] text-slate-500">
+                  Description (optionnelle)
+                </Text>
+                <TextInput
+                  value={description}
+                  onChangeText={setDescription}
+                  maxLength={120}
+                  placeholder="Courte intention — « ravager les pectoraux »"
+                  placeholderTextColor="#475569"
+                  selectionColor="#60A5FA"
+                  className="mt-1.5 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-3 text-sm italic text-slate-200"
+                />
+
+                <Text className="mt-5 text-[10px] font-bold uppercase tracking-[3px] text-slate-500">
+                  Exercices ({selectedIds.length} sélectionné
+                  {selectedIds.length > 1 ? 's' : ''})
+                </Text>
               </View>
-            ))}
-          </ScrollView>
+            }
+            renderItem={({ item }) => {
+              if (item.type === 'header') {
+                return (
+                  <View className="mt-3 px-5 mb-1.5">
+                    <Text className="text-[11px] font-black uppercase tracking-[3px] text-blue-300/80">
+                      ◆ {item.label}
+                    </Text>
+                  </View>
+                );
+              }
+              const isSelected = selectedIds.includes(item.id);
+              return (
+                <View className="px-5 mb-1">
+                  <ExerciseListItem
+                    item={item}
+                    isSelected={isSelected}
+                    onToggle={toggle}
+                  />
+                </View>
+              );
+            }}
+          />
 
           {/* Footer — sticky save button */}
           <View className="border-t border-slate-800 bg-[#020617]/80 px-5 py-4">
