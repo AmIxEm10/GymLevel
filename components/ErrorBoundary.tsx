@@ -35,7 +35,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
+  override componentDidCatch(error: Error, info: React.ErrorInfo) {
     // Log to your monitoring service here (e.g. Sentry) when integrated.
     console.error('[ErrorBoundary] Uncaught error:', error, info.componentStack);
   }
@@ -51,7 +51,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     }
   };
 
-  render() {
+  override render() {
     if (!this.state.hasError) {
       return this.props.children;
     }

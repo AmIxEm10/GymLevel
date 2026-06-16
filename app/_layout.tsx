@@ -21,10 +21,10 @@ import { useAppStore } from '@/store/useAppStore';
  * region (iOS PWA / browser rubber-band) paints the System's deep navy
  * instead of flashing white.
  *
- * Fix U-02: ErrorBoundary wraps the entire tree so unhandled JS exceptions
+ * Historical Context:
+ * - U-02: ErrorBoundary wraps the entire tree so unhandled JS exceptions
  * show a recoverable crash screen instead of a blank production screen.
- *
- * Fix U-04: isReady gate waits for initializeApp() to resolve before any
+ * - U-04: isReady gate waits for initializeApp() to resolve before any
  * routing decision is made, preventing the onboarding flash race condition.
  */
 export default function RootLayout() {
@@ -36,7 +36,9 @@ export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    initializeApp().finally(() => setIsReady(true));
+    // initializeApp is synchronous right now, but might become async.
+    // Wrap it in Promise.resolve just in case.
+    Promise.resolve(initializeApp()).finally(() => setIsReady(true));
   }, [initializeApp]);
 
   // Onboarding gate — only runs after the store is fully hydrated.
