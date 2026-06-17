@@ -4,7 +4,7 @@ import { Animated, Modal, Pressable, Text, View, Easing } from 'react-native';
 
 import { RARITY_PALETTE } from '@/components/InventorySlot';
 import { useAppStore } from '@/store/useAppStore';
-import type { EquipmentSlot } from '@/types';
+import type { EquipmentSlot, EquipmentItem } from '@/types';
 
 const SLOT_ICON: Record<EquipmentSlot, typeof Gem> = {
   head: HardHat,
@@ -123,109 +123,126 @@ export function LootDropModal() {
             shadowOffset: { width: 0, height: 0 },
           }}
         >
-          {/* Rarity chip */}
-          <View className="items-center">
-            <View
-              className="rounded-md px-2 py-0.5"
-              style={{
-                borderWidth: 1,
-                borderColor: palette.border,
-                backgroundColor: 'rgba(255,255,255,0.04)',
-              }}
-            >
-              <Text
-                className={`text-[10px] font-black uppercase tracking-[5px] ${palette.textClass}`}
-                style={{ textShadowColor: palette.glow, textShadowRadius: 6 }}
-              >
-                {palette.label}
-              </Text>
-            </View>
-          </View>
-
-          {/* Hero icon */}
-          <View className="mt-5 items-center">
-            <View
-              className="h-28 w-28 items-center justify-center rounded-2xl bg-white/[0.04]"
-              style={{
-                borderWidth: 2,
-                borderColor: palette.border,
-                shadowColor: palette.glow,
-                shadowOpacity: 0.95,
-                shadowRadius: 24,
-                shadowOffset: { width: 0, height: 0 },
-              }}
-            >
-              <Icon size={54} color={palette.iconColor} strokeWidth={1.75} />
-            </View>
-
-            <Text
-              className="mt-5 text-center text-2xl font-black tracking-wider text-slate-100"
-              style={{
-                textShadowColor: palette.glow,
-                textShadowRadius: 14,
-                textShadowOffset: { width: 0, height: 0 },
-              }}
-            >
-              {item.name.toUpperCase()}
-            </Text>
-
-            {item.description ? (
-              <Text className="mt-2 text-center text-xs italic leading-relaxed text-slate-400">
-                {item.description}
-              </Text>
-            ) : null}
-          </View>
-
-          {/* Bonuses */}
-          {item.bonuses.length > 0 ? (
-            <View className="mt-5 rounded-xl border border-slate-800 bg-white/[0.02] p-3">
-              <View className="flex-row items-center">
-                <Sparkles size={12} color={palette.border} />
-                <Text
-                  className="ml-2 text-[10px] font-bold uppercase tracking-[3px] text-slate-400"
-                >
-                  Effets
-                </Text>
-              </View>
-              <View className="mt-1.5 gap-1">
-                {item.bonuses.map(b => (
-                  <Text
-                    key={b.id}
-                    className="text-[11px] leading-relaxed text-slate-300"
-                  >
-                    ◆ {b.description}
-                  </Text>
-                ))}
-              </View>
-            </View>
-          ) : null}
-
-          {/* CTA */}
-          <Pressable
-            onPress={dismiss}
-            className="mt-6 rounded-xl border-2 py-3 active:opacity-70"
-            style={{
-              borderColor: palette.border,
-              backgroundColor: 'rgba(255,255,255,0.04)',
-              shadowColor: palette.glow,
-              shadowOpacity: 0.7,
-              shadowRadius: 14,
-              shadowOffset: { width: 0, height: 0 },
-            }}
-          >
-            <Text
-              className="text-center text-sm font-black uppercase tracking-[4px]"
-              style={{
-                color: palette.border,
-                textShadowColor: palette.glow,
-                textShadowRadius: 8,
-              }}
-            >
-              Fermer
-            </Text>
-          </Pressable>
+          <RarityChip palette={palette} />
+          <HeroIcon item={item} palette={palette} Icon={Icon} />
+          <BonusesList item={item} palette={palette} />
+          <CloseButton dismiss={dismiss} palette={palette} />
         </Animated.View>
       </Animated.View>
     </Modal>
+  );
+}
+
+function RarityChip({ palette }: { palette: typeof RARITY_PALETTE[keyof typeof RARITY_PALETTE] }) {
+  return (
+    <View className="items-center">
+      <View
+        className="rounded-md px-2 py-0.5"
+        style={{
+          borderWidth: 1,
+          borderColor: palette.border,
+          backgroundColor: 'rgba(255,255,255,0.04)',
+        }}
+      >
+        <Text
+          className={`text-[10px] font-black uppercase tracking-[5px] ${palette.textClass}`}
+          style={{ textShadowColor: palette.glow, textShadowRadius: 6 }}
+        >
+          {palette.label}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function HeroIcon({ item, palette, Icon }: { item: EquipmentItem, palette: typeof RARITY_PALETTE[keyof typeof RARITY_PALETTE], Icon: typeof Gem }) {
+  return (
+    <View className="mt-5 items-center">
+      <View
+        className="h-28 w-28 items-center justify-center rounded-2xl bg-white/[0.04]"
+        style={{
+          borderWidth: 2,
+          borderColor: palette.border,
+          shadowColor: palette.glow,
+          shadowOpacity: 0.95,
+          shadowRadius: 24,
+          shadowOffset: { width: 0, height: 0 },
+        }}
+      >
+        <Icon size={54} color={palette.iconColor} strokeWidth={1.75} />
+      </View>
+
+      <Text
+        className="mt-5 text-center text-2xl font-black tracking-wider text-slate-100"
+        style={{
+          textShadowColor: palette.glow,
+          textShadowRadius: 14,
+          textShadowOffset: { width: 0, height: 0 },
+        }}
+      >
+        {item.name.toUpperCase()}
+      </Text>
+
+      {item.description ? (
+        <Text className="mt-2 text-center text-xs italic leading-relaxed text-slate-400">
+          {item.description}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function BonusesList({ item, palette }: { item: EquipmentItem, palette: typeof RARITY_PALETTE[keyof typeof RARITY_PALETTE] }) {
+  if (item.bonuses.length === 0) return null;
+
+  return (
+    <View className="mt-5 rounded-xl border border-slate-800 bg-white/[0.02] p-3">
+      <View className="flex-row items-center">
+        <Sparkles size={12} color={palette.border} />
+        <Text
+          className="ml-2 text-[10px] font-bold uppercase tracking-[3px] text-slate-400"
+        >
+          Effets
+        </Text>
+      </View>
+      <View className="mt-1.5 gap-1">
+        {item.bonuses.map(b => (
+          <Text
+            key={b.id}
+            className="text-[11px] leading-relaxed text-slate-300"
+          >
+            ◆ {b.description}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function CloseButton({ dismiss, palette }: { dismiss: () => void, palette: typeof RARITY_PALETTE[keyof typeof RARITY_PALETTE] }) {
+  return (
+    <Pressable
+      onPress={dismiss}
+      className="mt-6 rounded-xl border-2 py-3 active:opacity-70"
+      style={{
+        borderColor: palette.border,
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        shadowColor: palette.glow,
+        shadowOpacity: 0.7,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 0 },
+      }}
+    >
+      <Text
+        className="text-center text-sm font-black uppercase tracking-[4px]"
+        style={{
+          color: palette.border,
+          textShadowColor: palette.glow,
+          textShadowRadius: 8,
+        }}
+      >
+        Fermer
+      </Text>
+    </Pressable>
   );
 }
