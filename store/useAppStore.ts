@@ -57,7 +57,17 @@ import {
   mintItem,
   pickRandomTemplate,
 } from '@/data/equipment';
-import { getActiveSets } from '@/data/itemSets';
+import { getActiveSets, ItemSet } from '@/data/itemSets';
+
+let cachedEquipped: Record<EquipmentSlot, EquipmentItem | null> | null = null;
+let cachedActiveSets: ItemSet[] = [];
+
+function getMemoizedActiveSets(equipped: Record<EquipmentSlot, EquipmentItem | null>): ItemSet[] {
+  if (equipped === cachedEquipped) return cachedActiveSets;
+  cachedEquipped = equipped;
+  cachedActiveSets = getActiveSets(equipped);
+  return cachedActiveSets;
+}
 
 import {
   BODYWEIGHT_MAX_KG,
@@ -799,7 +809,7 @@ export const useAppStore = create<AppState>()(
         // 4bis) Active set-bonus multiplier (e.g. "Monarque de Fer" +10 %
         //       on compound movements).
         let setMult = 1.0;
-        for (const set of getActiveSets(profile.inventory.equipped)) {
+        for (const set of getMemoizedActiveSets(profile.inventory.equipped)) {
           if (set.effect.kind !== 'xp_boost') continue;
           const filter = set.effect.filter;
           if (filter?.movement && filter.movement !== exercise.movement) continue;
@@ -1160,7 +1170,7 @@ export const useAppStore = create<AppState>()(
           const dungeonRank: Rank = profile.bossInstanceActive ? 'S' : rawRank;
           // Set-bonus loot multiplier ("Illusionniste" → ×1.25)
           let setLootLuck = 1.0;
-          for (const set of getActiveSets(profile.inventory.equipped)) {
+          for (const set of getMemoizedActiveSets(profile.inventory.equipped)) {
             if (set.effect.kind === 'loot_luck') {
               setLootLuck *= set.effect.multiplier;
             }
