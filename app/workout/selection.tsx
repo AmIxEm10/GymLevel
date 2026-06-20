@@ -488,32 +488,38 @@ function CreateTemplateModal({
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
 
   const toggle = (id: string) => {
-    setSelectedIds(s =>
-      s.includes(id) ? s.filter(x => x !== id) : [...s, id],
-    );
+    setSelectedIds(s => {
+      if (s[id]) {
+        const { [id]: _, ...rest } = s;
+        return rest;
+      }
+      return { ...s, [id]: true };
+    });
   };
 
   const reset = () => {
     setName('');
     setDescription('');
-    setSelectedIds([]);
+    setSelectedIds({});
   };
 
-  const canSave = name.trim().length >= 3 && selectedIds.length >= 2;
+  const selectedKeys = Object.keys(selectedIds);
+  const selectedCount = selectedKeys.length;
+  const canSave = name.trim().length >= 3 && selectedCount >= 2;
 
   const save = () => {
     if (!canSave) return;
-    const estimatedMin = Math.max(15, selectedIds.length * 8);
+    const estimatedMin = Math.max(15, selectedCount * 8);
     onSave({
       name: name.trim().slice(0, 40),
       description: description.trim().slice(0, 120) || undefined,
       tags: ['custom'],
       difficulty: 'intermediate',
       estimatedDurationMinutes: estimatedMin,
-      exercises: selectedIds.map((id, i) => ({
+      exercises: selectedKeys.map((id, i) => ({
         exerciseId: id,
         order: i + 1,
         targetSets: 3,
@@ -598,8 +604,8 @@ function CreateTemplateModal({
               />
 
               <Text className="mt-5 text-[10px] font-bold uppercase tracking-[3px] text-slate-500">
-                Exercices ({selectedIds.length} sélectionné
-                {selectedIds.length > 1 ? 's' : ''})
+                Exercices ({selectedCount} sélectionné
+                {selectedCount > 1 ? 's' : ''})
               </Text>
             </View>
 
@@ -611,7 +617,7 @@ function CreateTemplateModal({
                 </Text>
                 <View className="mt-1.5 gap-1">
                   {EXERCISES.filter(ex => ex.category === group.id).map(ex => {
-                    const isSelected = selectedIds.includes(ex.id);
+                    const isSelected = !!selectedIds[ex.id];
                     return (
                       <Pressable
                         key={ex.id}
@@ -711,7 +717,7 @@ function CreateTemplateModal({
                 <Sparkles size={12} color="#6EE7B7" />
                 <Text className="ml-1 text-[10px] italic text-emerald-300">
                   Portail prêt — ~
-                  {Math.max(15, selectedIds.length * 8)} min estimées
+                  {Math.max(15, selectedCount * 8)} min estimées
                 </Text>
               </View>
             )}
